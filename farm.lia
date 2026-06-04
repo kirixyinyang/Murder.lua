@@ -1,0 +1,65 @@
+-- J.A.R.V.I.S | Farm Module
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+_G.Settings = _G.Settings or {}
+_G.Settings.autoFarm = false
+_G.Settings.farmSpeed = 50
+
+local farmConnection = nil
+
+local function getCoins()
+    local coins = {}
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and (obj.Name:lower():find("coin") or obj.Name:lower():find("gem")) then
+            table.insert(coins, obj)
+        end
+    end
+    return coins
+end
+
+local function startFarm()
+    if farmConnection then farmConnection:Disconnect() end
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if humanoid then humanoid.PlatformStand = true end
+    
+    farmConnection = RunService.Heartbeat:Connect(function()
+        if not _G.Settings.autoFarm then
+            if humanoid then humanoid.PlatformStand = false end
+            if farmConnection then farmConnection:Disconnect(); farmConnection = nil end
+            return
+        end
+        local coins = getCoins()
+        if #coins == 0 then return end
+        local nearest, nearDist
+        for _, c in ipairs(coins) do
+            local d = (hrp.Position - c.Position).Magnitude
+            if not nearDist or d < nearDist then
+                nearDist = d
+                nearest = c
+            end
+        end
+        if nearest then
+            local dir = (nearest.Position - hrp.Position).Unit
+            hrp.CFrame = hrp.CFrame + dir * (_G.Settings.farmSpeed * 0.016)
+        end
+    end)
+end
+
+local function stopFarm()
+    if farmConnection then farmConnection:Disconnect(); farmConnection = nil end
+    local char = LocalPlayer.Character
+    if char then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then humanoid.PlatformStand = false end
+    end
+end
+
+print("J.A.R.V.I.S: Farm Module Loaded")
