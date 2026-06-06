@@ -869,3 +869,63 @@ ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y +
 StarterGui:SetCore("SendNotification", {Title = "MM2 Hub v1.0", Text = "Floating button ready. Tap to open.", Duration = 5})
 
 print("// YinYang: MM2 Hub v1.0 загружен.")
+-- // YinYang: MM2 Hub v1.0 - PATCH: Visible Button [PART 4/4]
+
+-- Удаляем старую кнопку из CoreGui если она там есть
+if CoreGui:FindFirstChild("FloatButton") then
+    CoreGui.FloatButton:Destroy()
+end
+
+-- Создаём кнопку заново в PlayerGui (гарантированно видна)
+local FloatButton = Instance.new("TextButton")
+FloatButton.Name = "MM2_FloatButton"
+FloatButton.Size = UDim2.new(0, 55, 0, 55)
+FloatButton.Position = UDim2.new(0.85, 0, 0.75, 0)
+FloatButton.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+FloatButton.BorderSizePixel = 2
+FloatButton.BorderColor3 = Color3.fromRGB(200, 0, 0)
+FloatButton.Text = "MM2"
+FloatButton.TextColor3 = Color3.fromRGB(200, 0, 0)
+FloatButton.TextSize = 14
+FloatButton.Font = Enum.Font.GothamBold
+FloatButton.Active = true
+FloatButton.Draggable = true
+FloatButton.ZIndex = 999
+FloatButton.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0.5, 0)
+BtnCorner.Parent = FloatButton
+
+local BtnStroke = Instance.new("UIStroke")
+BtnStroke.Color = Color3.fromRGB(200, 0, 0)
+BtnStroke.Thickness = 2
+BtnStroke.Parent = FloatButton
+
+-- Анимация при наведении
+FloatButton.MouseEnter:Connect(function()
+    TweenService:Create(FloatButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(40, 0, 0),
+        TextColor3 = Color3.fromRGB(255, 255, 255)
+    }):Play()
+end)
+
+FloatButton.MouseLeave:Connect(function()
+    TweenService:Create(FloatButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(15, 15, 15),
+        TextColor3 = Color3.fromRGB(200, 0, 0)
+    }):Play()
+end)
+
+-- Привязка к панели (Terminal уже создан в частях 1-3)
+FloatButton.MouseButton1Click:Connect(function()
+    PanelOpen = not PanelOpen
+    if Terminal then
+        Terminal.Visible = PanelOpen
+    end
+    if ScreenGui then
+        ScreenGui.Enabled = PanelOpen
+    end
+end)
+
+StarterGui:SetCore("SendNotification", {Title = "MM2 Hub", Text = "Button visible! Tap to open.", Duration = 4})
