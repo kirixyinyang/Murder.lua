@@ -1,4 +1,4 @@
--- // YinYang: MM2 Hub v3.0 - Sections [PART 1/4]
+-- // YinYang: MM2 Hub v4.0 - Fixed [PART 1/4]
 
 local Players=game:GetService("Players")
 local TweenService=game:GetService("TweenService")
@@ -8,6 +8,7 @@ local StarterGui=game:GetService("StarterGui")
 local Lighting=game:GetService("Lighting")
 local TeleportService=game:GetService("TeleportService")
 local Workspace=game:GetService("Workspace")
+local ReplicatedStorage=game:GetService("ReplicatedStorage")
 local LocalPlayer=Players.LocalPlayer
 local PlayerGui=LocalPlayer:WaitForChild("PlayerGui")
 local Camera=workspace.CurrentCamera
@@ -16,11 +17,11 @@ local C={bg=Color3.fromRGB(8,8,8),bg2=Color3.fromRGB(14,14,14),bg3=Color3.fromRG
 red=Color3.fromRGB(200,0,0),redBright=Color3.fromRGB(255,30,30),redDark=Color3.fromRGB(60,0,0),
 text=Color3.fromRGB(235,235,235),textDim=Color3.fromRGB(100,100,100)}
 
--- Состояния
 local ESPPeople,ESPMurderer,ESPSheriff,ESPGun=false,false,false,false
 local FlyEnabled,NoClipEnabled,AimbotEnabled,GodModeEnabled=false,false,false,false
 local AntiAFKEnabled,FullBrightEnabled,InstantKillEnabled=false,false,false
-local FlingEnabled,KillAllEnabled,FarmEnabled,AutoGrabGun=false,false,false,false
+local HiddenFling,KillAllEnabled,FarmEnabled,AutoGrabGun=false,false,false,false
+local FlingThread=nil
 local IgnoreSheriff,IgnoreInnocent=false,false
 local AimbotFOV=120;local ShowAimbotCircle=true;local AimbotCircle=nil
 local WalkspeedVal,JumpPowerVal,GravityVal=16,50,196.2;local FarmCooldown=0.1
@@ -98,14 +99,12 @@ local Panel=Instance.new("Frame")
 Panel.Size=UDim2.new(0,280,0,320);Panel.Position=UDim2.new(0.5,-140,1,0)
 Panel.BackgroundColor3=C.bg;Panel.BorderSizePixel=0;Panel.ZIndex=10;Panel.Visible=false;Panel.Parent=ScreenGui
 Instance.new("UICorner",Panel).CornerRadius=UDim.new(0,12)
-
 local TopLine=Instance.new("Frame")
 TopLine.Size=UDim2.new(1,0,0,2);TopLine.BackgroundColor3=C.red;TopLine.BorderSizePixel=0;TopLine.ZIndex=11;TopLine.Parent=Panel
-
 local Header=Instance.new("Frame")
-Header.Size=UDim2.new(1,0,0,50);Header.Position=UDim2.new(0,0,0,2);Header.BackgroundColor3=C.bg2
+Header.Size=UDim2.new(1,0,0,48);Header.Position=UDim2.new(0,0,0,2);Header.BackgroundColor3=C.bg2
 Header.BorderSizePixel=0;Header.ZIndex=11;Header.Parent=Panel
-local LogoLbl=Instance.new("TextLabel");LogoLbl.Size=UDim2.new(1,0,0,22);LogoLbl.Position=UDim2.new(0,0,0,5)
+local LogoLbl=Instance.new("TextLabel");LogoLbl.Size=UDim2.new(1,0,0,20);LogoLbl.Position=UDim2.new(0,0,0,5)
 LogoLbl.BackgroundTransparency=1;LogoLbl.Text="MM2 HUB";LogoLbl.TextColor3=C.red
 LogoLbl.TextSize=16;LogoLbl.Font=Enum.Font.GothamBlack;LogoLbl.ZIndex=12;LogoLbl.Parent=Header
 local ByLbl=Instance.new("TextLabel");ByLbl.Size=UDim2.new(1,0,0,12);ByLbl.Position=UDim2.new(0,0,0,24)
@@ -119,7 +118,6 @@ RunService.RenderStepped:Connect(function()
     if role=="MURDERER"then RoleLabel.TextColor3=Color3.fromRGB(255,50,50)
     elseif role=="SHERIFF"then RoleLabel.TextColor3=Color3.fromRGB(50,100,255)end
 end)
-
 local CloseBtn=Instance.new("TextButton")
 CloseBtn.Size=UDim2.new(0,22,0,22);CloseBtn.Position=UDim2.new(1,-28,0,6)
 CloseBtn.BackgroundColor3=C.redDark;CloseBtn.BorderSizePixel=0;CloseBtn.Text="X"
@@ -129,16 +127,14 @@ Instance.new("UICorner",CloseBtn).CornerRadius=UDim.new(0,5)
 -- Табы
 local TabButtons={}
 local TabContent={}
-local currentTab=nil
-
 local function CreateTab(name)
     local btn=Instance.new("TextButton")
-    btn.Size=UDim2.new(0.22,0,0,22);btn.Position=UDim2.new(0.02+#TabButtons*0.24,0,0,54)
+    btn.Size=UDim2.new(0.22,0,0,22);btn.Position=UDim2.new(0.02+#TabButtons*0.24,0,0,52)
     btn.BackgroundColor3=C.bg3;btn.BorderSizePixel=0;btn.Text=name;btn.TextColor3=C.textDim
     btn.TextSize=9;btn.Font=Enum.Font.GothamBold;btn.ZIndex=13;btn.Parent=Panel
     Instance.new("UICorner",btn).CornerRadius=UDim.new(0,4)
     local content=Instance.new("ScrollingFrame")
-    content.Size=UDim2.new(1,-12,1,-82);content.Position=UDim2.new(0,6,0,78)
+    content.Size=UDim2.new(1,-12,1,-80);content.Position=UDim2.new(0,6,0,76)
     content.BackgroundTransparency=1;content.BorderSizePixel=0;content.ScrollBarThickness=2
     content.ScrollBarImageColor3=C.red;content.CanvasSize=UDim2.new(0,0,0,0)
     content.AutomaticCanvasSize=Enum.AutomaticSize.Y;content.ZIndex=11;content.Visible=false;content.Parent=Panel
@@ -146,12 +142,15 @@ local function CreateTab(name)
     btn.MouseButton1Click:Connect(function()
         for _,b in pairs(TabButtons)do b.BackgroundColor3=C.bg3;b.TextColor3=C.textDim end
         for _,c in pairs(TabContent)do c.Visible=false end
-        btn.BackgroundColor3=C.redDark;btn.TextColor3=C.text
-        content.Visible=true;currentTab=content
+        btn.BackgroundColor3=C.redDark;btn.TextColor3=C.text;content.Visible=true
     end)
-    table.insert(TabButtons,btn);table.insert(TabContent,content)
-    return content
+    table.insert(TabButtons,btn);table.insert(TabContent,content);return content
 end
+local TabESP=CreateTab("ESP")
+local TabMove=CreateTab("Move")
+local TabCombat=CreateTab("Combat")
+local TabUtil=CreateTab("Util")
+TabButtons[1].BackgroundColor3=C.redDark;TabButtons[1].TextColor3=C.text;TabContent[1].Visible=true
 
 local function MakeToggle(parent,label,callback)
     local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,36);row.BackgroundColor3=C.bg3
@@ -179,7 +178,6 @@ local function MakeToggle(parent,label,callback)
     btn.Text="";btn.ZIndex=15;btn.Parent=row;btn.MouseButton1Click:Connect(function()set(not isOn)end)
     return{set=set}
 end
-
 local function MakeAction(parent,label,callback)
     local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,36);row.BackgroundColor3=C.bg3
     row.BorderSizePixel=0;row.ZIndex=12;row.Parent=parent
@@ -199,7 +197,6 @@ local function MakeAction(parent,label,callback)
         if callback then callback()end
     end)
 end
-
 local function MakeSlider(parent,label,min,max,default,callback)
     local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,50);row.BackgroundColor3=C.bg3
     row.BorderSizePixel=0;row.ZIndex=12;row.Parent=parent
@@ -208,11 +205,11 @@ local function MakeSlider(parent,label,min,max,default,callback)
     local nl=Instance.new("TextLabel");nl.Size=UDim2.new(1,-12,0,16);nl.Position=UDim2.new(0,8,0,3)
     nl.BackgroundTransparency=1;nl.Text=label..": "..default;nl.TextColor3=C.text;nl.TextSize=11
     nl.Font=Enum.Font.GothamBold;nl.TextXAlignment=Enum.TextXAlignment.Left;nl.ZIndex=13;nl.Parent=row
-    local btnMinus=Instance.new("TextButton");btnMinus.Size=UDim2.new(0,18,0,16);btnMinus.Position=UDim2.new(0,8,0,24)
+    local btnMinus=Instance.new("TextButton");btnMinus.Size=UDim2.new(0,18,0,16);btnMinus.Position=UDim2.new(0,8,0,26)
     btnMinus.BackgroundColor3=C.redDark;btnMinus.Text="-";btnMinus.TextColor3=C.text;btnMinus.TextSize=10
     btnMinus.Font=Enum.Font.GothamBold;btnMinus.ZIndex=15;btnMinus.Parent=row
     Instance.new("UICorner",btnMinus).CornerRadius=UDim.new(0,3)
-    local btnPlus=Instance.new("TextButton");btnPlus.Size=UDim2.new(0,18,0,16);btnPlus.Position=UDim2.new(0,30,0,24)
+    local btnPlus=Instance.new("TextButton");btnPlus.Size=UDim2.new(0,18,0,16);btnPlus.Position=UDim2.new(0,30,0,26)
     btnPlus.BackgroundColor3=C.redDark;btnPlus.Text="+";btnPlus.TextColor3=C.text;btnPlus.TextSize=10
     btnPlus.Font=Enum.Font.GothamBold;btnPlus.ZIndex=15;btnPlus.Parent=row
     Instance.new("UICorner",btnPlus).CornerRadius=UDim.new(0,3)
@@ -226,15 +223,7 @@ local function MakeSlider(parent,label,min,max,default,callback)
     return{set=function(v)val=v;update()end,get=function()return val end}
 end
 
--- Табы
-local TabESP=CreateTab("ESP")
-local TabMove=CreateTab("Move")
-local TabCombat=CreateTab("Combat")
-local TabUtil=CreateTab("Util")
--- Открыть первый таб
-TabButtons[1].BackgroundColor3=C.redDark;TabButtons[1].TextColor3=C.text;TabContent[1].Visible=true;currentTab=TabContent[1]
-
--- ESP
+-- ESP (X Hub стиль)
 local function addESP(part,color,text)
     if not part then return end
     local hl=Instance.new("Highlight");hl.FillColor=color;hl.OutlineColor=color
@@ -303,7 +292,7 @@ local function UpdateAimbotCircle()
     AimbotCircle.Visible=true
 end
 CreateAimbotCircle()
--- // YinYang: MM2 Hub v3.0 - Sections [PART 2/4]
+-- // YinYang: MM2 Hub v4.0 - Fixed [PART 2/4]
 
 -- Fly
 function EnableFly()
@@ -429,15 +418,17 @@ local function FPSBoost()
     pcall(function()settings().Rendering.QualityLevel=1 end)
 end
 
--- Gravity / Walkspeed / JumpPower
+-- Gravity / Walkspeed / JumpPower (X Hub стиль)
 local function SetGravity(v)Workspace.Gravity=v end
 local function SetWalkspeed(v)
+    WalkspeedVal=v
     local hum=LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
-    if hum then hum.WalkSpeed=v end;WalkspeedVal=v
+    if hum then hum.WalkSpeed=v end
 end
 local function SetJumpPower(v)
+    JumpPowerVal=v
     local hum=LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
-    if hum then hum.JumpPower=v end;JumpPowerVal=v
+    if hum then hum.JumpPower=v end
 end
 RunService.Heartbeat:Connect(function()
     local hum=LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
@@ -446,7 +437,7 @@ RunService.Heartbeat:Connect(function()
         if JumpPowerVal~=50 then hum.JumpPower=JumpPowerVal end
     end
 end)
--- // YinYang: MM2 Hub v3.0 - Sections [PART 3/4]
+-- // YinYang: MM2 Hub v4.0 - Fixed [PART 3/4]
 
 -- Instant Kill
 local function ToggleInstantKill(v)
@@ -466,7 +457,7 @@ local function ToggleInstantKill(v)
     end)else if InstantKillConn then InstantKillConn:Disconnect();InstantKillConn=nil end end
 end
 
--- Kill All (X Hub метод)
+-- Kill All (X Hub метод: GetAttribute("Alive"))
 local function KillAll()
     KillAllEnabled=true
     local function killLoop()
@@ -491,82 +482,78 @@ local function ToggleFarm(v)
             for _,coin in pairs(CoinContainer:GetChildren())do
                 pcall(function()LocalPlayer.Character:SetPrimaryPartCFrame(coin.CFrame)end)
                 task.wait(FarmCooldown)
-            end        end
+            end
+        end
     end)else if FarmConn then FarmConn:Disconnect();FarmConn=nil end end
 end
 
--- Grab Gun (телепорт к пистолету + взять + обратно)
+-- Grab Gun (X Hub метод: просто ТП к пистолету, без возврата)
 local function GrabGun()
     local gunDrop=Workspace:FindFirstChild("Normal")and Workspace.Normal:FindFirstChild("GunDrop")
-    if not gunDrop or not LocalPlayer.Character then return end
-    local origPos=LocalPlayer.Character.HumanoidRootPart.CFrame
-    pcall(function()LocalPlayer.Character:SetPrimaryPartCFrame(gunDrop.CFrame)end)
-    task.wait(0.1)
-    firetouchinterest(LocalPlayer.Character.HumanoidRootPart,gunDrop,0)
-    firetouchinterest(LocalPlayer.Character.HumanoidRootPart,gunDrop,1)
-    task.wait(0.05)
-    pcall(function()LocalPlayer.Character:SetPrimaryPartCFrame(origPos)end)
-    StarterGui:SetCore("SendNotification",{Title="Grab Gun",Text="Grabbed & returned!",Duration=2})
+    if gunDrop and LocalPlayer.Character then
+        LocalPlayer.Character:SetPrimaryPartCFrame(gunDrop.CFrame)
+        StarterGui:SetCore("SendNotification",{Title="Grab Gun",Text="Teleported to Gun Drop",Duration=2})
+    end
 end
 
--- Auto Grab Gun (каждый раз когда выпадает)
+-- Auto Grab Gun (X Hub метод: ТП когда пистолет появляется)
 local function ToggleAutoGrabGun(v)
     AutoGrabGun=v
     if v then
         GrabGunConn=RunService.Heartbeat:Connect(function()
             local gunDrop=Workspace:FindFirstChild("Normal")and Workspace.Normal:FindFirstChild("GunDrop")
             if gunDrop and LocalPlayer.Character and not hasGun(LocalPlayer)then
-                local origPos=LocalPlayer.Character.HumanoidRootPart.CFrame
-                pcall(function()LocalPlayer.Character:SetPrimaryPartCFrame(gunDrop.CFrame)end)
-                task.wait(0.1)
-                firetouchinterest(LocalPlayer.Character.HumanoidRootPart,gunDrop,0)
-                firetouchinterest(LocalPlayer.Character.HumanoidRootPart,gunDrop,1)
-                task.wait(0.05)
-                pcall(function()LocalPlayer.Character:SetPrimaryPartCFrame(origPos)end)
+                LocalPlayer.Character:SetPrimaryPartCFrame(gunDrop.CFrame)
             end
         end)
     else if GrabGunConn then GrabGunConn:Disconnect();GrabGunConn=nil end end
 end
 
--- Fling (исправлен)
-local FlingThread=nil
+-- Fling (из примера — работает!)
+if not ReplicatedStorage:FindFirstChild("MM2_FlingDetect")then
+    local d=Instance.new("Decal");d.Name="MM2_FlingDetect";d.Parent=ReplicatedStorage
+end
 local function StartFling(targetFunc)
-    if FlingEnabled then StopFling()end
-    FlingEnabled=true;local movel=0.1
+    if HiddenFling then return end
+    HiddenFling=true;local movel=0.1
     FlingThread=coroutine.create(function()
-        while FlingEnabled do
+        while HiddenFling do
             RunService.Heartbeat:Wait()
-            local char=LocalPlayer.Character
-            local hrp=char and char:FindFirstChild("HumanoidRootPart")
-            if not hrp then continue end
-            local target=targetFunc and targetFunc()
-            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")then
-                hrp.CFrame=target.Character.HumanoidRootPart.CFrame+Vector3.new(0,2,0)
+            local c=LocalPlayer.Character;local hrp=c and c:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local target=targetFunc and targetFunc()
+                if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")then
+                    hrp.CFrame=target.Character.HumanoidRootPart.CFrame+Vector3.new(0,2,0)
+                end
+                local vel=hrp.Velocity
+                hrp.Velocity=vel*10000+Vector3.new(0,10000,0)
+                RunService.RenderStepped:Wait()
+                hrp.Velocity=vel
+                RunService.Stepped:Wait()
+                hrp.Velocity=vel+Vector3.new(0,movel,0)
+                movel=-movel
             end
-            local vel=hrp.Velocity
-            hrp.Velocity=vel*10000+Vector3.new(0,10000,0)
-            RunService.RenderStepped:Wait()
-            hrp.Velocity=vel
-            RunService.Stepped:Wait()
-            hrp.Velocity=vel+Vector3.new(0,movel,0)
-            movel=-movel
         end
     end)
     coroutine.resume(FlingThread)
 end
-local function StopFling()FlingEnabled=false;FlingThread=nil end
+local function StopFling()HiddenFling=false;FlingThread=nil end
+local function FlingMurderer()if HiddenFling then StopFling()end;StartFling(getMurderer)end
+local function FlingSheriff()if HiddenFling then StopFling()end;StartFling(getSheriff)end
 
 -- TP
 local function TPMurderer()
     local m=getMurderer()
     if m and m.Character then
         pcall(function()LocalPlayer.Character:SetPrimaryPartCFrame(m.Character.PrimaryPart.CFrame)end)
+        StarterGui:SetCore("SendNotification",{Title="TP",Text="Murderer: "..m.Name,Duration=2})
     end
 end
 local function TPSheriff()
     local s=getSheriff()
     if s and s.Character then
         pcall(function()LocalPlayer.Character:SetPrimaryPartCFrame(s.Character.PrimaryPart.CFrame)end)
+        StarterGui:SetCore("SendNotification",{Title="TP",Text="Sheriff: "..s.Name,Duration=2})
     end
 end
 local function TPPlayer()
@@ -585,8 +572,6 @@ local function TPPlayer()
         pcall(function()LocalPlayer.Character:SetPrimaryPartCFrame(closest.Character.PrimaryPart.CFrame)end)
     end
 end
-local function FlingMurderer()StartFling(getMurderer)end
-local function FlingSheriff()StartFling(getSheriff)end
 
 -- Server Hop
 local function ServerHop()
@@ -605,8 +590,8 @@ local function CleanupAll()
     ESPPeople,ESPMurderer,ESPSheriff,ESPGun=false,false,false,false
     ToggleNoClip(false);ToggleAimbot(false);ToggleGodMode(false);ToggleAntiAFK(false)
     ToggleFullBright(false);ToggleInstantKill(false);ToggleFarm(false);ToggleAutoGrabGun(false)
-    StopKillAll()
-    if FlyEnabled then DisableFly()end;if FlingEnabled then StopFling()end
+    StopKillAll();StopFling()
+    if FlyEnabled then DisableFly()end
     if AimbotCircle then AimbotCircle:Destroy();AimbotCircle=nil end
     if Lighting:FindFirstChild("MM2_Brightness")then Lighting.MM2_Brightness:Destroy()end
 end
@@ -620,7 +605,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     if FlyEnabled then FlyEnabled=false;task.wait(0.1);EnableFly()end
     if InstantKillEnabled then InstantKillEnabled=false;task.wait(0.2);ToggleInstantKill(true)end
 end)
--- // YinYang: MM2 Hub v3.0 - Sections [PART 4/4]
+-- // YinYang: MM2 Hub v4.0 - Fixed [PART 4/4]
 
 -- ESP Tab
 MakeToggle(TabESP,"ESP People",function(v)ESPPeople=v end)
@@ -689,4 +674,4 @@ end)
 CloseBtn.MouseButton1Click:Connect(closeMenu)
 Overlay.MouseButton1Click:Connect(closeMenu)
 
-print("MM2 Hub v3.0 - Sections loaded.")
+print("MM2 Hub v4.0 - X Hub Logic loaded.")
