@@ -1,4 +1,4 @@
--- // YinYang: MurdTroll Hub v3.0 - Clean [PART 1/2]
+-- // YinYang: MurdTroll Hub v3.0 - Fixed [PART 1/2]
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -13,7 +13,6 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
--- Состояния
 local FlyEnabled = false
 local NoClipEnabled = false
 local ESPEnabled = false
@@ -27,7 +26,6 @@ local FullBrightEnabled = false
 
 local BodyVelocity, BodyGyro
 local FLY_SPEED = 50
-local JoyX, JoyZ = 0, 0
 local FlyHeartbeatConn
 local NoclipConn
 local JumpConn
@@ -192,7 +190,7 @@ local function DisableNoClip()
     StarterGui:SetCore("SendNotification", {Title = "NoClip", Text = "OFF", Duration = 2})
 end
 
--- ==================== FLY (правильный) ====================
+-- ==================== FLY (ИСПРАВЛЕННЫЙ) ====================
 function EnableFly()
     if FlyEnabled then return end
     local char = LocalPlayer.Character
@@ -215,17 +213,6 @@ function EnableFly()
     BodyGyro.CFrame = hrp.CFrame
     BodyGyro.Parent = hrp
 
-    ContextActionService:BindAction("FlyJoy", function(_, state, obj)
-        if obj.KeyCode == Enum.KeyCode.Thumbstick1 then
-            if state == Enum.UserInputState.Change then
-                JoyX = obj.Position.X
-                JoyZ = obj.Position.Y
-            else
-                JoyX, JoyZ = 0, 0
-            end
-        end
-    end, false, Enum.KeyCode.Thumbstick1)
-
     FlyEnabled = true
 
     FlyHeartbeatConn = RunService.Heartbeat:Connect(function()
@@ -235,18 +222,27 @@ function EnableFly()
 
         local camCF = Camera.CFrame
         local forward = camCF.LookVector
-        local right   = camCF.RightVector
+        local right = camCF.RightVector
         local dir = Vector3.zero
 
+        -- ПК: WASD
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + forward end
         if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - forward end
         if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - right end
         if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + right end
 
-        if math.abs(JoyX) > 0.1 or math.abs(JoyZ) > 0.1 then
-            dir = dir + (forward * JoyZ) + (right * JoyX)
+        -- Мобилка: джойстик напрямую через GetKeysPressed
+        local keysPressed = UserInputService:GetKeysPressed()
+        for _, key in ipairs(keysPressed) do
+            if key.KeyCode == Enum.KeyCode.Thumbstick1 then
+                local pos = key.Position
+                if math.abs(pos.X) > 0.1 or math.abs(pos.Y) > 0.1 then
+                    dir = dir + (forward * pos.Y) + (right * pos.X)
+                end
+            end
         end
 
+        -- Вертикаль
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) or UserInputService:IsKeyDown(Enum.KeyCode.ButtonA) then
             dir = dir + Vector3.new(0, 1, 0)
         end
@@ -271,7 +267,6 @@ function DisableFly()
     FlyEnabled = false
 
     if FlyHeartbeatConn then FlyHeartbeatConn:Disconnect(); FlyHeartbeatConn = nil end
-    pcall(function() ContextActionService:UnbindAction("FlyJoy") end)
     if BodyVelocity then BodyVelocity:Destroy(); BodyVelocity = nil end
     if BodyGyro then BodyGyro:Destroy(); BodyGyro = nil end
 
@@ -281,7 +276,6 @@ function DisableFly()
         if hum then hum.PlatformStand = false end
     end
 
-    JoyX, JoyZ = 0, 0
     StarterGui:SetCore("SendNotification", {Title = "Fly", Text = "OFF", Duration = 2})
 end
 
@@ -352,7 +346,7 @@ local function DisableESP()
     ESPObjects = {}
     StarterGui:SetCore("SendNotification", {Title = "ESP", Text = "OFF", Duration = 2})
 end
--- // YinYang: MurdTroll Hub v3.0 - Clean [PART 2/2]
+-- // YinYang: MurdTroll Hub v3.0 - Fixed [PART 2/2]
 
 -- ==================== SPEED HACK ====================
 local function ToggleSpeedHack()
