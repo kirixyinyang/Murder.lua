@@ -1,4 +1,4 @@
--- // YinYang: MurdTroll Hub v3.0 - Final Fix [PART 1/2]
+-- // YinYang: MurdTroll Hub v3.0 - Final [PART 1/2]
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -6,6 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local StarterGui = game:GetService("StarterGui")
 local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Camera = workspace.CurrentCamera
 local CoreGui = game:GetService("CoreGui")
 
@@ -22,14 +23,29 @@ local AimbotEnabled = false
 local GodModeEnabled = false
 local AntiAFKEnabled = false
 local FullBrightEnabled = false
+local FlingEnabled = false
 
 local BodyVelocity, BodyGyro
-local FLY_SPEED = 50
+local FLY_SPEED = 80
 local FlyHeartbeatConn
 local NoclipConn
 local JumpConn
 local AimbotConn
 local AntiAFKConn
+local FlingThread
+
+-- Получение вектора джойстика (Akbarshox)
+local function getJoystickVector()
+    local success, result = pcall(function()
+        local pm = LocalPlayer.PlayerScripts:FindFirstChild("PlayerModule")
+        if pm then
+            local cm = pm:FindFirstChild("ControlModule")
+            if cm then return require(cm):GetMoveVector() end
+        end
+        return Vector3.zero
+    end)
+    return success and result or Vector3.zero
+end
 
 -- GUI
 local ScreenGui = Instance.new("ScreenGui")
@@ -57,7 +73,7 @@ TitleBar.Parent = Terminal
 local TitleText = Instance.new("TextLabel")
 TitleText.Size = UDim2.new(1, -40, 1, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "MurdTroll Hub v3.0 // Terminal"
+TitleText.Text = "MurdTroll Hub v3.0 // Final"
 TitleText.TextColor3 = Color3.fromRGB(180, 0, 0)
 TitleText.TextSize = 13
 TitleText.Font = Enum.Font.Code
@@ -189,7 +205,7 @@ local function DisableNoClip()
     StarterGui:SetCore("SendNotification", {Title = "NoClip", Text = "OFF", Duration = 2})
 end
 
--- ==================== FLY (ФИНАЛЬНЫЙ ФИКС) ====================
+-- ==================== FLY (AKBARSHOX V3) ====================
 function EnableFly()
     if FlyEnabled then return end
     local char = LocalPlayer.Character
@@ -201,70 +217,50 @@ function EnableFly()
     hum.PlatformStand = true
 
     BodyVelocity = Instance.new("BodyVelocity")
-    BodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
+    BodyVelocity.MaxForce = Vector3.new(99999, 99999, 99999)
     BodyVelocity.Velocity = Vector3.zero
-    BodyVelocity.P = 5000
     BodyVelocity.Parent = hrp
 
     BodyGyro = Instance.new("BodyGyro")
-    BodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
-    BodyGyro.P = 30000
-    BodyGyro.CFrame = hrp.CFrame
+    BodyGyro.MaxTorque = Vector3.new(99999, 99999, 99999)
+    BodyGyro.P = 12500
     BodyGyro.Parent = hrp
 
     FlyEnabled = true
 
-    FlyHeartbeatConn = RunService.Heartbeat:Connect(function()
-        if not FlyEnabled or not BodyVelocity or not BodyGyro then return end
-        local char = LocalPlayer.Character
-        if not char then return end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hum then return end
+    FlyHeartbeatConn = RunService.RenderStepped:Connect(function()
+        if not FlyEnabled or not BodyVelocity then return end
+        local cam = workspace.CurrentCamera
 
-        local camCF = Camera.CFrame
-        local forward = camCF.LookVector
-        local right = camCF.RightVector
-        local dir = Vector3.zero
+        local move = getJoystickVector()
 
-        -- Джойстик: MoveDirection с математическим поворотом под камеру
-        local md = hum.MoveDirection
-        if md.Magnitude > 0.1 then
-            local camFlat = Vector3.new(camCF.LookVector.X, 0, camCF.LookVector.Z)
-            local angle = math.atan2(camFlat.X, camFlat.Z)
-            local rotated = Vector3.new(
-                md.X * math.cos(angle) + md.Z * math.sin(angle),
-                0,
-                -md.X * math.sin(angle) + md.Z * math.cos(angle)
-            )
-            dir = dir + (camCF.LookVector * rotated.Z) + (camCF.RightVector * rotated.X)
-        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + Vector3.new(0, 0, -1) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move + Vector3.new(0, 0, 1) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move + Vector3.new(-1, 0, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + Vector3.new(1, 0, 0) end
 
-        -- ПК: WASD
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + forward end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - forward end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - right end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + right end
-
-        -- Вертикаль
+        local vertical = 0
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) or UserInputService:IsKeyDown(Enum.KeyCode.ButtonA) then
-            dir = dir + Vector3.new(0, 1, 0)
+            vertical = 1
         end
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.ButtonX) then
-            dir = dir - Vector3.new(0, 1, 0)
+            vertical = -1
         end
 
-        if dir.Magnitude > 0 then
-            BodyVelocity.Velocity = dir.Unit * FLY_SPEED
+        local finalDir = Vector3.new(move.X, vertical, move.Z)
+
+        if finalDir.Magnitude > 0 then
+            BodyVelocity.Velocity = cam.CFrame:VectorToWorldSpace(finalDir.Unit) * FLY_SPEED
         else
             BodyVelocity.Velocity = Vector3.zero
         end
 
-        BodyGyro.CFrame = CFrame.new(Vector3.zero, camCF.LookVector)
+        if BodyGyro then
+            BodyGyro.CFrame = cam.CFrame
+        end
     end)
 
-    StarterGui:SetCore("SendNotification", {Title = "Fly", Text = "ON | Joy/WASD | A/Space Up | X/Shift Down", Duration = 3})
+    StarterGui:SetCore("SendNotification", {Title = "Fly", Text = "ON | Speed: " .. FLY_SPEED, Duration = 3})
 end
 
 function DisableFly()
@@ -282,6 +278,51 @@ function DisableFly()
     end
 
     StarterGui:SetCore("SendNotification", {Title = "Fly", Text = "OFF", Duration = 2})
+end
+
+-- ==================== TOUCH FLING ====================
+local function StartFling()
+    if not ReplicatedStorage:FindFirstChild("YinYang_Fling") then
+        local detection = Instance.new("Decal")
+        detection.Name = "YinYang_Fling"
+        detection.Parent = ReplicatedStorage
+    end
+
+    FlingEnabled = true
+    local movel = 0.1
+
+    FlingThread = coroutine.create(function()
+        while FlingEnabled do
+            RunService.Heartbeat:Wait()
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if not hrp then continue end
+
+            local vel = hrp.Velocity
+            hrp.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
+            RunService.RenderStepped:Wait()
+            hrp.Velocity = vel
+            RunService.Stepped:Wait()
+            hrp.Velocity = vel + Vector3.new(0, movel, 0)
+            movel = -movel
+        end
+    end)
+    coroutine.resume(FlingThread)
+end
+
+local function StopFling()
+    FlingEnabled = false
+    FlingThread = nil
+end
+
+local function ToggleFling()
+    if FlingEnabled then
+        StopFling()
+        StarterGui:SetCore("SendNotification", {Title = "Touch Fling", Text = "OFF", Duration = 2})
+    else
+        StartFling()
+        StarterGui:SetCore("SendNotification", {Title = "Touch Fling", Text = "ON", Duration = 2})
+    end
 end
 
 -- ==================== ESP ====================
@@ -351,7 +392,7 @@ local function DisableESP()
     ESPObjects = {}
     StarterGui:SetCore("SendNotification", {Title = "ESP", Text = "OFF", Duration = 2})
 end
--- // YinYang: MurdTroll Hub v3.0 - Final Fix [PART 2/2]
+-- // YinYang: MurdTroll Hub v3.0 - Final [PART 2/2]
 
 -- ==================== SPEED HACK ====================
 local function ToggleSpeedHack()
@@ -360,6 +401,12 @@ local function ToggleSpeedHack()
         LocalPlayer.Character.Humanoid.WalkSpeed = SpeedHackEnabled and 100 or 16
     end
     StarterGui:SetCore("SendNotification", {Title = "Speed", Text = SpeedHackEnabled and "100" or "16", Duration = 2})
+end
+
+-- ==================== FLY SPEED CONTROL ====================
+local function ChangeFlySpeed(delta)
+    FLY_SPEED = math.max(10, FLY_SPEED + delta)
+    StarterGui:SetCore("SendNotification", {Title = "Fly Speed", Text = tostring(FLY_SPEED), Duration = 1.5})
 end
 
 -- ==================== INFINITE JUMP ====================
@@ -479,6 +526,7 @@ function CleanupAll()
     if FlyEnabled then DisableFly() end
     if NoClipEnabled then DisableNoClip() end
     if ESPEnabled then DisableESP() end
+    if FlingEnabled then StopFling() end
     SpeedHackEnabled = false
     InfiniteJumpEnabled = false
     AimbotEnabled = false
@@ -500,17 +548,25 @@ LocalPlayer.CharacterAdded:Connect(function(char)
         local hum = char:WaitForChild("Humanoid", 3)
         if hum then hum.MaxHealth = math.huge; hum.Health = math.huge end
     end
+    if FlingEnabled then
+        StopFling()
+        task.wait(0.2)
+        StartFling()
+    end
 end)
 
 -- ==================== BUTTONS ====================
 AddSeparator("MOVEMENT")
-AddButton("REAL FLY (Joy/WASD)", function() if FlyEnabled then DisableFly() else EnableFly() end end)
+AddButton("FLY (Akbarshox V3)", function() if FlyEnabled then DisableFly() else EnableFly() end end)
+AddButton("FLY SPEED +10", function() ChangeFlySpeed(10) end)
+AddButton("FLY SPEED -10", function() ChangeFlySpeed(-10) end)
 AddButton("NOCLIP (Walls)", function() if NoClipEnabled then DisableNoClip() else EnableNoClip() end end)
 AddButton("SPEED HACK", ToggleSpeedHack)
 AddButton("INFINITE JUMP", ToggleInfiniteJump)
 AddButton("TP TO CURSOR", TeleportToCursor)
 
 AddSeparator("COMBAT")
+AddButton("TOUCH FLING", ToggleFling)
 AddButton("AIMBOT", ToggleAimbot)
 AddButton("GOD MODE", ToggleGodMode)
 
@@ -526,6 +582,6 @@ AddButton("EXIT HUB", function() CleanupAll(); ScreenGui:Destroy() end)
 AddSeparator("YinYang System Active")
 ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
 
-StarterGui:SetCore("SendNotification", {Title = "MurdTroll Hub v3.0", Text = "Terminal loaded. All protocols active.", Duration = 4})
+StarterGui:SetCore("SendNotification", {Title = "MurdTroll Hub v3.0", Text = "Fly + Fling + ESP + More", Duration = 4})
 
-print("// YinYang: MurdTroll Hub v3.0 загружен.")
+print("// YinYang: MurdTroll Hub v3.0 Final загружен.")
