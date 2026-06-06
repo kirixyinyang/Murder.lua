@@ -219,7 +219,7 @@ local function MakeAction(label,desc,callback)
         if callback then callback()end
     end)
 end
--- // YinYang: MM2 Hub v2.0 - Full [PART 2/4]
+-- // YinYang: MM2 Hub v2.0 - Fixed [PART 2/4]
 
 -- ESP Players
 local function CreatePlayerESP(player)
@@ -239,7 +239,7 @@ local function CreatePlayerESP(player)
         txt.BackgroundTransparency=1;txt.Text=player.Name;txt.TextColor3=Color3.fromRGB(255,255,255)
         txt.TextSize=11;txt.Font=Enum.Font.Code;txt.Parent=frm
         bbg.Parent=game:GetService("CoreGui")
-        ESPObjects[player]={billboard=bbg,frame=frm,text=txt,highlight=hl}
+        ESPObjects[player]={billboard=bbg,frame=frm,text=txt,highlight=hl,player=player}
     end
     if player.Character then setup()end
     player.CharacterAdded:Connect(function()task.wait(0.3);setup()end)
@@ -264,63 +264,54 @@ local function DisablePlayerESP()
     end; ESPObjects={}
 end
 
--- ESP Murderer
+-- ESP Murderer (исправлено)
+local MurderESPConnection = nil
 local function ToggleMurderESP(v)
     MurderESPEnabled=v
-    if v then SheriffESPEnabled=false
-        RunService.RenderStepped:Connect(function()
+    if v then 
+        SheriffESPEnabled=false
+        if MurderESPConnection then MurderESPConnection:Disconnect()end
+        MurderESPConnection=RunService.RenderStepped:Connect(function()
             if not MurderESPEnabled then return end
             local m=getMurderer()
             for _,d in pairs(ESPObjects)do
-                if d.frame and d.highlight and m and d.text and d.text.Text==m.Name then
-                    d.frame.BackgroundColor3=Color3.fromRGB(255,0,0);d.frame.BorderColor3=Color3.fromRGB(255,50,50)
+                if d.player and m and d.player==m then
+                    d.frame.BackgroundColor3=Color3.fromRGB(255,0,0)
+                    d.frame.BorderColor3=Color3.fromRGB(255,50,50)
                     d.text.Text=m.Name.." [MURDERER]"
-                    d.highlight.FillColor=Color3.fromRGB(255,0,0);d.highlight.OutlineColor=Color3.fromRGB(255,0,0)
+                    d.highlight.FillColor=Color3.fromRGB(255,0,0)
+                    d.highlight.OutlineColor=Color3.fromRGB(255,0,0)
                 end
             end
         end)
+    else
+        if MurderESPConnection then MurderESPConnection:Disconnect();MurderESPConnection=nil end
     end
 end
 
--- ESP Sheriff
+-- ESP Sheriff (исправлено)
+local SheriffESPConnection = nil
 local function ToggleSheriffESP(v)
     SheriffESPEnabled=v
-    if v then MurderESPEnabled=false
-        RunService.RenderStepped:Connect(function()
+    if v then 
+        MurderESPEnabled=false
+        if SheriffESPConnection then SheriffESPConnection:Disconnect()end
+        SheriffESPConnection=RunService.RenderStepped:Connect(function()
             if not SheriffESPEnabled then return end
             local s=getSheriff()
             for _,d in pairs(ESPObjects)do
-                if d.frame and d.highlight and s and d.text and d.text.Text==s.Name then
-                    d.frame.BackgroundColor3=Color3.fromRGB(0,50,255);d.frame.BorderColor3=Color3.fromRGB(50,100,255)
+                if d.player and s and d.player==s then
+                    d.frame.BackgroundColor3=Color3.fromRGB(0,50,255)
+                    d.frame.BorderColor3=Color3.fromRGB(50,100,255)
                     d.text.Text=s.Name.." [SHERIFF]"
-                    d.highlight.FillColor=Color3.fromRGB(0,50,255);d.highlight.OutlineColor=Color3.fromRGB(0,100,255)
+                    d.highlight.FillColor=Color3.fromRGB(0,50,255)
+                    d.highlight.OutlineColor=Color3.fromRGB(0,100,255)
                 end
             end
         end)
+    else
+        if SheriffESPConnection then SheriffESPConnection:Disconnect();SheriffESPConnection=nil end
     end
-end
-
--- ESP Coins
-local function ToggleCoinESP(v)
-    CoinESPEnabled=v
-    if v then
-        RunService.RenderStepped:Connect(function()
-            if not CoinESPEnabled then return end
-            for _,obj in pairs(workspace:GetDescendants())do
-                if(obj.Name=="Coin"or obj.Name=="Coins")and not CoinESPObjects[obj]then
-                    local bbg=Instance.new("BillboardGui");bbg.Adornee=obj
-                    bbg.Size=UDim2.new(0,60,0,20);bbg.StudsOffset=Vector3.new(0,2,0);bbg.AlwaysOnTop=true
-                    local frm=Instance.new("Frame");frm.Size=UDim2.new(1,0,1,0)
-                    frm.BackgroundColor3=Color3.fromRGB(255,215,0);frm.BackgroundTransparency=0.5
-                    frm.BorderSizePixel=0;frm.Parent=bbg
-                    local txt=Instance.new("TextLabel");txt.Size=UDim2.new(1,0,1,0)
-                    txt.BackgroundTransparency=1;txt.Text="COIN";txt.TextColor3=Color3.fromRGB(0,0,0)
-                    txt.TextSize=10;txt.Font=Enum.Font.Code;txt.Parent=frm
-                    bbg.Parent=game:GetService("CoreGui");CoinESPObjects[obj]=bbg
-                end
-            end
-        end)
-    else for obj,bbg in pairs(CoinESPObjects)do bbg:Destroy()end;CoinESPObjects={}end
 end
 
 -- Fly
@@ -395,14 +386,13 @@ local function ToggleInfiniteJump(v)
     end)else if JumpConn then JumpConn:Disconnect();JumpConn=nil end end
 end
 
--- Aimbot (с игнором)
+-- Aimbot
 local function ToggleAimbot(v)
     AimbotEnabled=v
     if v then AimbotConn=RunService.RenderStepped:Connect(function()
         local closest,minDist=nil,math.huge
         for _,plr in pairs(Players:GetPlayers())do
             if plr~=LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head")then
-                local role=getMyRole()
                 local targetRole="INNOCENT"
                 if plr.Character:FindFirstChild("Murderer")or(plr.Backpack and plr.Backpack:FindFirstChild("Knife"))then targetRole="MURDERER"
                 elseif plr.Character:FindFirstChild("Sheriff")or(plr.Backpack and plr.Backpack:FindFirstChild("Gun"))then targetRole="SHERIFF"end
@@ -461,14 +451,17 @@ local function FPSBoost()
     pcall(function()settings().Rendering.QualityLevel=1 end)
 end
 
--- Fling
+-- Fling (исправлено)
+local FlingThread = nil
 local function StartFling(targetFunc)
     if not ReplicatedStorage:FindFirstChild("MM2_Fling")then
         local d=Instance.new("Decal");d.Name="MM2_Fling";d.Parent=ReplicatedStorage
     end
+    StopFling()
     FlingEnabled=true;local movel=0.1
-    local thread=coroutine.create(function()
-        while FlingEnabled do RunService.Heartbeat:Wait()
+    FlingThread=coroutine.create(function()
+        while FlingEnabled do 
+            RunService.Heartbeat:Wait()
             local char=LocalPlayer.Character;local hrp=char and char:FindFirstChild("HumanoidRootPart")
             if not hrp then continue end
             local target=targetFunc and targetFunc()
@@ -479,10 +472,13 @@ local function StartFling(targetFunc)
             RunService.RenderStepped:Wait();hrp.Velocity=vel
             RunService.Stepped:Wait();hrp.Velocity=vel+Vector3.new(0,movel,0);movel=-movel
         end
-    end);coroutine.resume(thread)
+    end)
+    coroutine.resume(FlingThread)
 end
-local function StopFling()FlingEnabled=false end
--- // YinYang: MM2 Hub v2.0 - Full [PART 3/4]
+local function StopFling()
+    FlingEnabled=false;FlingThread=nil
+end
+-- // YinYang: MM2 Hub v2.0 - Fixed [PART 3/4]
 
 -- Auto Pickup
 local function ToggleAutoPickup(v)
@@ -623,16 +619,14 @@ local function TPMurderAndShoot()
     end
 end
 
--- Fling Murderer
+-- Fling Murderer (исправлено)
 local function FlingMurderer()
-    if FlingEnabled then StopFling()end
     StartFling(getMurderer)
     StarterGui:SetCore("SendNotification",{Title="Fling",Text="Flinging to Murderer",Duration=2})
 end
 
--- Fling Sheriff
+-- Fling Sheriff (исправлено)
 local function FlingSheriff()
-    if FlingEnabled then StopFling()end
     StartFling(getSheriff)
     StarterGui:SetCore("SendNotification",{Title="Fling",Text="Flinging to Sheriff",Duration=2})
 end
@@ -651,7 +645,10 @@ end
 
 -- Cleanup
 local function CleanupAll()
-    DisablePlayerESP();ToggleCoinESP(false);ToggleNoClip(false);ToggleSpeedHack(false)
+    DisablePlayerESP()
+    if MurderESPConnection then MurderESPConnection:Disconnect()end
+    if SheriffESPConnection then SheriffESPConnection:Disconnect()end
+    ToggleNoClip(false);ToggleSpeedHack(false)
     ToggleInfiniteJump(false);ToggleAimbot(false);ToggleGodMode(false);ToggleAntiAFK(false)
     ToggleFullBright(false);ToggleAutoPickup(false);ToggleAutoShoot(false);ToggleInstantKill(false)
     if FlyEnabled then DisableFly()end;if FlingEnabled then StopFling()end
@@ -669,13 +666,12 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     if AutoPickupEnabled then AutoPickupEnabled=false;task.wait(0.2);ToggleAutoPickup(true)end
     if FlingEnabled then StopFling()end
 end)
--- // YinYang: MM2 Hub v2.0 - Full [PART 4/4]
+-- // YinYang: MM2 Hub v2.0 - Fixed [PART 4/4]
 
--- BUTTONS
+-- BUTTONS (без ESP Coins)
 MakeToggle("ESP Players","Подсветка всех игроков",function(v)if v then EnablePlayerESP()else DisablePlayerESP()end end)
 MakeToggle("ESP Murderer","Подсветка убийцы красным",ToggleMurderESP)
 MakeToggle("ESP Sheriff","Подсветка шерифа синим",ToggleSheriffESP)
-MakeToggle("ESP Coins","Монетки через стены",ToggleCoinESP)
 MakeToggle("Flight","Свободный полёт",function(v)if v then EnableFly()else DisableFly()end end)
 MakeToggle("NoClip","Проход сквозь стены",ToggleNoClip)
 MakeToggle("Speed Hack","Быстрый бег",ToggleSpeedHack)
