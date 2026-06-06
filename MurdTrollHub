@@ -1,9 +1,8 @@
--- // YinYang: MurdTroll Hub v3.0 - Fixed [PART 1/2]
+-- // YinYang: MurdTroll Hub v3.0 - Final [PART 1/2]
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local ContextActionService = game:GetService("ContextActionService")
 local TweenService = game:GetService("TweenService")
 local StarterGui = game:GetService("StarterGui")
 local Lighting = game:GetService("Lighting")
@@ -190,7 +189,7 @@ local function DisableNoClip()
     StarterGui:SetCore("SendNotification", {Title = "NoClip", Text = "OFF", Duration = 2})
 end
 
--- ==================== FLY (ИСПРАВЛЕННЫЙ) ====================
+-- ==================== FLY (ФИНАЛЬНЫЙ ФИКС) ====================
 function EnableFly()
     if FlyEnabled then return end
     local char = LocalPlayer.Character
@@ -217,30 +216,33 @@ function EnableFly()
 
     FlyHeartbeatConn = RunService.Heartbeat:Connect(function()
         if not FlyEnabled or not BodyVelocity or not BodyGyro then return end
-        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local char = LocalPlayer.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum then return end
 
         local camCF = Camera.CFrame
         local forward = camCF.LookVector
         local right = camCF.RightVector
         local dir = Vector3.zero
 
-        -- ПК: WASD
+        -- Основной способ: MoveDirection (работает и на телефоне и на ПК)
+        local md = hum.MoveDirection
+        if md.Magnitude > 0.1 then
+            local flatForward = Vector3.new(camCF.LookVector.X, 0, camCF.LookVector.Z)
+            local flatRight = Vector3.new(camCF.RightVector.X, 0, camCF.RightVector.Z)
+            if flatForward.Magnitude > 0 then flatForward = flatForward.Unit end
+            if flatRight.Magnitude > 0 then flatRight = flatRight.Unit end
+            dir = dir + flatForward * -md.Z + flatRight * md.X
+        end
+
+        -- ПК: дополнительно WASD для надёжности
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + forward end
         if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - forward end
         if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - right end
         if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + right end
-
-        -- Мобилка: джойстик напрямую через GetKeysPressed
-        local keysPressed = UserInputService:GetKeysPressed()
-        for _, key in ipairs(keysPressed) do
-            if key.KeyCode == Enum.KeyCode.Thumbstick1 then
-                local pos = key.Position
-                if math.abs(pos.X) > 0.1 or math.abs(pos.Y) > 0.1 then
-                    dir = dir + (forward * pos.Y) + (right * pos.X)
-                end
-            end
-        end
 
         -- Вертикаль
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) or UserInputService:IsKeyDown(Enum.KeyCode.ButtonA) then
@@ -346,7 +348,7 @@ local function DisableESP()
     ESPObjects = {}
     StarterGui:SetCore("SendNotification", {Title = "ESP", Text = "OFF", Duration = 2})
 end
--- // YinYang: MurdTroll Hub v3.0 - Fixed [PART 2/2]
+-- // YinYang: MurdTroll Hub v3.0 - Final [PART 2/2]
 
 -- ==================== SPEED HACK ====================
 local function ToggleSpeedHack()
