@@ -1,387 +1,359 @@
--- // YinYang: MurdTroll Hub v1.0
--- // Все функции полностью рабочие, отказы исключены
+-- // YinYang: MurdTroll Hub v2.0 - Terminal Edition [PART 1/2]
 
-local MurdTroll = {}
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
 local TweenService = game:GetService("TweenService")
-local CoreGui = game:GetService("CoreGui")
+local StarterGui = game:GetService("StarterGui")
+local Lighting = game:GetService("Lighting")
 local Camera = workspace.CurrentCamera
+local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
-local ScreenGui = nil
-local Flying = false
+
+local FlyEnabled = false
 local NoClipEnabled = false
 local ESPEnabled = false
+local ESPObjects = {}
 local SpeedHackEnabled = false
 local InfiniteJumpEnabled = false
 local AimbotEnabled = false
+local GodModeEnabled = false
+local AntiAFKEnabled = false
+local FullBrightEnabled = false
 
--- // Создание GUI панели (черно-красная тема)
-local function CreateGUI()
-    ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "MurdTrollHub"
-    ScreenGui.Parent = CoreGui
-    
-    -- Главная панель
-    local MainFrame = Instance.new("Frame")
-    MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 280, 0, 380)
-    MainFrame.Position = UDim2.new(0.5, -140, 0.5, -190)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    MainFrame.BorderSizePixel = 0
-    MainFrame.Active = true
-    MainFrame.Draggable = true
-    MainFrame.Parent = ScreenGui
-    
-    -- Заголовок
-    local Title = Instance.new("TextLabel")
-    Title.Name = "Title"
-    Title.Size = UDim2.new(1, 0, 0, 40)
-    Title.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-    Title.BorderSizePixel = 0
-    Title.Text = "MurdTroll Hub"
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.TextSize = 20
-    Title.Font = Enum.Font.GothamBold
-    Title.Parent = MainFrame
-    
-    -- Кнопка закрытия
-    local CloseBtn = Instance.new("TextButton")
-    CloseBtn.Size = UDim2.new(0, 40, 0, 40)
-    CloseBtn.Position = UDim2.new(1, -40, 0, 0)
-    CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-    CloseBtn.BorderSizePixel = 0
-    CloseBtn.Text = "X"
-    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    CloseBtn.TextSize = 18
-    CloseBtn.Font = Enum.Font.GothamBold
-    CloseBtn.Parent = Title
-    CloseBtn.MouseButton1Click:Connect(function()
-        ScreenGui:Destroy()
-        Flying = false
-        NoClipEnabled = false
-        ESPEnabled = false
-        SpeedHackEnabled = false
-        InfiniteJumpEnabled = false
-        AimbotEnabled = false
+local BodyVelocity, BodyGyro
+local FlyAction = "YinYangFly"
+local MoveVector = Vector3.zero
+local FLY_SPEED = 50
+local NoclipConnection
+local JumpConnection
+local AimbotConnection
+local AntiAFKConnection
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MurdTrollTerminal"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+
+local Terminal = Instance.new("Frame")
+Terminal.Name = "Terminal"
+Terminal.Size = UDim2.new(0, 320, 0, 420)
+Terminal.Position = UDim2.new(0.5, -160, 0.5, -210)
+Terminal.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+Terminal.BorderSizePixel = 1
+Terminal.BorderColor3 = Color3.fromRGB(180, 0, 0)
+Terminal.Active = true
+Terminal.Draggable = true
+Terminal.Parent = ScreenGui
+
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = Terminal
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Size = UDim2.new(1, -40, 1, 0)
+TitleText.BackgroundTransparency = 1
+TitleText.Text = "MurdTroll Hub v2.0 // Terminal"
+TitleText.TextColor3 = Color3.fromRGB(180, 0, 0)
+TitleText.TextSize = 13
+TitleText.Font = Enum.Font.Code
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.Position = UDim2.new(0, 8, 0, 0)
+TitleText.Parent = TitleBar
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -30, 0, 0)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+CloseBtn.TextSize = 14
+CloseBtn.Font = Enum.Font.Code
+CloseBtn.Parent = TitleBar
+CloseBtn.MouseButton1Click:Connect(function()
+    CleanupAll()
+    ScreenGui:Destroy()
+end)
+
+local StatusBar = Instance.new("Frame")
+StatusBar.Size = UDim2.new(1, 0, 0, 20)
+StatusBar.Position = UDim2.new(0, 0, 1, -20)
+StatusBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+StatusBar.BorderSizePixel = 0
+StatusBar.Parent = Terminal
+
+local StatusText = Instance.new("TextLabel")
+StatusText.Size = UDim2.new(1, -10, 1, 0)
+StatusText.BackgroundTransparency = 1
+StatusText.Text = "YinYang: Active | FPS: --"
+StatusText.TextColor3 = Color3.fromRGB(140, 140, 140)
+StatusText.TextSize = 10
+StatusText.Font = Enum.Font.Code
+StatusText.TextXAlignment = Enum.TextXAlignment.Left
+StatusText.Position = UDim2.new(0, 5, 0, 0)
+StatusText.Parent = StatusBar
+
+RunService.RenderStepped:Connect(function()
+    StatusText.Text = "YinYang: Active | FPS: " .. math.floor(1 / (RunService.RenderStepped:Wait() + 0.0001))
+end)
+
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Size = UDim2.new(1, -4, 1, -54)
+ScrollFrame.Position = UDim2.new(0, 2, 0, 32)
+ScrollFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+ScrollFrame.BorderSizePixel = 0
+ScrollFrame.ScrollBarThickness = 4
+ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(180, 0, 0)
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollFrame.Parent = Terminal
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Padding = UDim.new(0, 2)
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Parent = ScrollFrame
+
+local function AddButton(name, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, -10, 0, 30)
+    Btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    Btn.BorderSizePixel = 1
+    Btn.BorderColor3 = Color3.fromRGB(60, 0, 0)
+    Btn.Text = "> " .. name
+    Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Btn.TextSize = 12
+    Btn.Font = Enum.Font.Code
+    Btn.TextXAlignment = Enum.TextXAlignment.Left
+    Btn.TextTruncate = Enum.TextTruncate.None
+    Btn.Parent = ScrollFrame
+    Btn.MouseEnter:Connect(function()
+        TweenService:Create(Btn, TweenInfo.new(0.15), {
+            BackgroundColor3 = Color3.fromRGB(40, 0, 0),
+            BorderColor3 = Color3.fromRGB(180, 0, 0),
+            TextColor3 = Color3.fromRGB(255, 255, 255)
+        }):Play()
     end)
-    
-    -- Контейнер для кнопок
-    local ScrollingFrame = Instance.new("ScrollingFrame")
-    ScrollingFrame.Size = UDim2.new(1, -10, 1, -50)
-    ScrollingFrame.Position = UDim2.new(0, 5, 0, 45)
-    ScrollingFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    ScrollingFrame.BorderSizePixel = 0
-    ScrollingFrame.ScrollBarThickness = 3
-    ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(180, 0, 0)
-    ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 650)
-    ScrollingFrame.Parent = MainFrame
-    
-    local YOffset = 10
-    
-    -- Функция создания кнопки
-    local function CreateButton(Text, Color, Callback)
-        local Button = Instance.new("TextButton")
-        Button.Size = UDim2.new(1, -20, 0, 35)
-        Button.Position = UDim2.new(0, 10, 0, YOffset)
-        Button.BackgroundColor3 = Color
-        Button.BorderSizePixel = 0
-        Button.Text = Text
-        Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Button.TextSize = 14
-        Button.Font = Enum.Font.GothamSemibold
-        Button.Parent = ScrollingFrame
-        
-        local Stroke = Instance.new("UIStroke")
-        Stroke.Color = Color3.fromRGB(100, 0, 0)
-        Stroke.Thickness = 1
-        Stroke.Parent = Button
-        
-        Button.MouseButton1Click:Connect(Callback)
-        YOffset = YOffset + 40
-        return Button
-    end
-    
-    -- Кнопка Fly (Полет)
-    CreateButton("✈ REAL FLY [WASD/Mobile]", Color3.fromRGB(40, 40, 40), function()
-        Flying = not Flying
-        if Flying then
-            StartFly()
-        else
-            StopFly()
-        end
+    Btn.MouseLeave:Connect(function()
+        TweenService:Create(Btn, TweenInfo.new(0.15), {
+            BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+            BorderColor3 = Color3.fromRGB(60, 0, 0),
+            TextColor3 = Color3.fromRGB(200, 200, 200)
+        }):Play()
     end)
-    
-    -- Кнопка NoClip
-    CreateButton("👻 NOCLIP", Color3.fromRGB(40, 40, 40), function()
-        NoClipEnabled = not NoClipEnabled
-        ToggleNoClip()
-    end)
-    
-    -- Кнопка ESP
-    CreateButton("👁 ESP PLAYERS", Color3.fromRGB(40, 40, 40), function()
-        ESPEnabled = not ESPEnabled
-        ToggleESP()
-    end)
-    
-    -- Кнопка Speed Hack
-    CreateButton("⚡ SPEED HACK", Color3.fromRGB(40, 40, 40), function()
-        SpeedHackEnabled = not SpeedHackEnabled
-        ToggleSpeedHack()
-    end)
-    
-    -- Кнопка Infinite Jump
-    CreateButton("🦘 INFINITE JUMP", Color3.fromRGB(40, 40, 40), function()
-        InfiniteJumpEnabled = not InfiniteJumpEnabled
-        ToggleInfiniteJump()
-    end)
-    
-    -- Кнопка Aimbot
-    CreateButton("🎯 AIMBOT", Color3.fromRGB(40, 40, 40), function()
-        AimbotEnabled = not AimbotEnabled
-        ToggleAimbot()
-    end)
-    
-    -- Кнопка Teleport to Cursor
-    CreateButton("📍 TP TO CURSOR", Color3.fromRGB(40, 40, 40), function()
-        TeleportToCursor()
-    end)
-    
-    -- Кнопка God Mode
-    CreateButton("🛡 GOD MODE", Color3.fromRGB(40, 40, 40), function()
-        ToggleGodMode()
-    end)
-    
-    -- Кнопка Anti AFK
-    CreateButton("⏰ ANTI AFK", Color3.fromRGB(40, 40, 40), function()
-        ToggleAntiAFK()
-    end)
-    
-    -- Кнопка Full Bright
-    CreateButton("💡 FULL BRIGHT", Color3.fromRGB(40, 40, 40), function()
-        ToggleFullBright()
-    end)
-    
-    -- Кнопка FPS Boost
-    CreateButton("🚀 FPS BOOST", Color3.fromRGB(40, 40, 40), function()
-        FPSBoost()
-    end)
-    
-    -- Информационная метка
-    local InfoLabel = Instance.new("TextLabel")
-    InfoLabel.Size = UDim2.new(1, -20, 0, 25)
-    InfoLabel.Position = UDim2.new(0, 10, 0, YOffset + 10)
-    InfoLabel.BackgroundTransparency = 1
-    InfoLabel.Text = "YinYang: MurdTroll Active"
-    InfoLabel.TextColor3 = Color3.fromRGB(180, 0, 0)
-    InfoLabel.TextSize = 11
-    InfoLabel.Font = Enum.Font.Gotham
-    InfoLabel.Parent = ScrollingFrame
-    
-    YOffset = YOffset + 40
-    ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, YOffset)
+    Btn.MouseButton1Click:Connect(callback)
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 5)
+    return Btn
 end
 
--- // ФУНКЦИЯ РЕАЛЬНОГО ПОЛЕТА (WASD + Мобильный джойстик)
-local BodyGyro, BodyVelocity
-local FlySpeed = 50
+local function AddSeparator(text)
+    local Sep = Instance.new("TextLabel")
+    Sep.Size = UDim2.new(1, -10, 0, 20)
+    Sep.BackgroundTransparency = 1
+    Sep.Text = "-- " .. text .. " --"
+    Sep.TextColor3 = Color3.fromRGB(120, 0, 0)
+    Sep.TextSize = 10
+    Sep.Font = Enum.Font.Code
+    Sep.Parent = ScrollFrame
+end
 
-function StartFly()
-    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
-    
-    local RootPart = LocalPlayer.Character.HumanoidRootPart
-    
+-- NOCLIP
+local function EnableNoClip()
+    NoClipEnabled = true
+    if NoclipConnection then NoclipConnection:Disconnect() end
+    NoclipConnection = RunService.Stepped:Connect(function()
+        if not NoClipEnabled then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide == true then
+                part.CanCollide = false
+            end
+        end
+    end)
+    StarterGui:SetCore("SendNotification", {Title = "YinYang NoClip", Text = "ВКЛЮЧЕН", Duration = 2})
+end
+
+local function DisableNoClip()
+    NoClipEnabled = false
+    if NoclipConnection then NoclipConnection:Disconnect(); NoclipConnection = nil end
+    local char = LocalPlayer.Character
+    if not char then return end
+    for _, part in pairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then part.CanCollide = true end
+    end
+    StarterGui:SetCore("SendNotification", {Title = "YinYang NoClip", Text = "ВЫКЛЮЧЕН", Duration = 2})
+end
+
+-- FLY
+local function OnFlyMoveAction(actionName, inputState, inputObject)
+    if not FlyEnabled then return end
+    if inputState == Enum.UserInputState.Begin or inputState == Enum.UserInputState.Change then
+        MoveVector = Vector3.new(inputObject.Position.X, 0, inputObject.Position.Y)
+    elseif inputState == Enum.UserInputState.End then
+        MoveVector = Vector3.zero
+    end
+end
+
+local function OnFlyUpAction(actionName, inputState, inputObject)
+    if not FlyEnabled or not BodyVelocity then return end
+    if inputState == Enum.UserInputState.Begin then
+        BodyVelocity.Velocity = BodyVelocity.Velocity + Vector3.new(0, FLY_SPEED, 0)
+    elseif inputState == Enum.UserInputState.End then
+        BodyVelocity.Velocity = BodyVelocity.Velocity - Vector3.new(0, FLY_SPEED, 0)
+    end
+end
+
+local function OnFlyDownAction(actionName, inputState, inputObject)
+    if not FlyEnabled or not BodyVelocity then return end
+    if inputState == Enum.UserInputState.Begin then
+        BodyVelocity.Velocity = BodyVelocity.Velocity - Vector3.new(0, FLY_SPEED, 0)
+    elseif inputState == Enum.UserInputState.End then
+        BodyVelocity.Velocity = BodyVelocity.Velocity + Vector3.new(0, FLY_SPEED, 0)
+    end
+end
+
+local function EnableFly()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+    hum.PlatformStand = true
+    BodyVelocity = Instance.new("BodyVelocity")
+    BodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
+    BodyVelocity.Velocity = Vector3.zero
+    BodyVelocity.P = 5000
+    BodyVelocity.Parent = hrp
     BodyGyro = Instance.new("BodyGyro")
     BodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
     BodyGyro.P = 30000
-    BodyGyro.CFrame = RootPart.CFrame
-    BodyGyro.Parent = RootPart
-    
-    BodyVelocity = Instance.new("BodyVelocity")
-    BodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
-    BodyVelocity.Velocity = Vector3.new(0, 0, 0)
-    BodyVelocity.P = 5000
-    BodyVelocity.Parent = RootPart
-    
-    -- Управление для ПК (WASD + Space/Shift)
-    local function OnInput(input, gameProcessed)
-        if gameProcessed or not Flying then return end
-        
-        if input.KeyCode == Enum.KeyCode.W then
-            BodyVelocity.Velocity = BodyVelocity.Velocity + (Camera.CFrame.LookVector * FlySpeed)
-        elseif input.KeyCode == Enum.KeyCode.S then
-            BodyVelocity.Velocity = BodyVelocity.Velocity + (Camera.CFrame.LookVector * -FlySpeed)
-        elseif input.KeyCode == Enum.KeyCode.A then
-            BodyVelocity.Velocity = BodyVelocity.Velocity + (Camera.CFrame.RightVector * -FlySpeed)
-        elseif input.KeyCode == Enum.KeyCode.D then
-            BodyVelocity.Velocity = BodyVelocity.Velocity + (Camera.CFrame.RightVector * FlySpeed)
-        elseif input.KeyCode == Enum.KeyCode.Space then
-            BodyVelocity.Velocity = BodyVelocity.Velocity + (Vector3.new(0, FlySpeed, 0))
-        elseif input.KeyCode == Enum.KeyCode.LeftShift then
-            BodyVelocity.Velocity = BodyVelocity.Velocity + (Vector3.new(0, -FlySpeed, 0))
+    BodyGyro.CFrame = hrp.CFrame
+    BodyGyro.Parent = hrp
+    ContextActionService:BindAction(FlyAction .. "Move", OnFlyMoveAction, false,
+        Enum.KeyCode.Thumbstick1, Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D)
+    ContextActionService:BindAction(FlyAction .. "Up", OnFlyUpAction, false,
+        Enum.KeyCode.ButtonA, Enum.KeyCode.Space)
+    ContextActionService:BindAction(FlyAction .. "Down", OnFlyDownAction, false,
+        Enum.KeyCode.ButtonX, Enum.KeyCode.LeftShift)
+    RunService.Heartbeat:Connect(function()
+        if not FlyEnabled or not BodyVelocity or not BodyGyro then return end
+        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+        local cameraCF = Camera.CFrame
+        local forward = Vector3.new(cameraCF.LookVector.X, 0, cameraCF.LookVector.Z).Unit
+        local right = Vector3.new(cameraCF.RightVector.X, 0, cameraCF.RightVector.Z).Unit
+        local moveDirection = (forward * -MoveVector.Z) + (right * MoveVector.X)
+        if moveDirection.Magnitude > 0 then
+            BodyVelocity.Velocity = Vector3.new(moveDirection.Unit.X * FLY_SPEED, BodyVelocity.Velocity.Y, moveDirection.Unit.Z * FLY_SPEED)
+        else
+            BodyVelocity.Velocity = Vector3.new(0, BodyVelocity.Velocity.Y, 0)
         end
-    end
-    
-    UserInputService.InputBegan:Connect(OnInput)
-    
-    -- Мобильное управление через виртуальный джойстик
-    local MobileJoystick = Instance.new("ScreenGui")
-    MobileJoystick.Name = "MobileFlyJoystick"
-    MobileJoystick.Parent = CoreGui
-    
-    local JoystickFrame = Instance.new("Frame")
-    JoystickFrame.Size = UDim2.new(0, 120, 0, 120)
-    JoystickFrame.Position = UDim2.new(0.1, 0, 0.7, 0)
-    JoystickFrame.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-    JoystickFrame.BackgroundTransparency = 0.7
-    JoystickFrame.BorderSizePixel = 0
-    JoystickFrame.Active = true
-    JoystickFrame.Parent = MobileJoystick
-    
-    local JoystickKnob = Instance.new("Frame")
-    JoystickKnob.Size = UDim2.new(0, 40, 0, 40)
-    JoystickKnob.Position = UDim2.new(0.5, -20, 0.5, -20)
-    JoystickKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    JoystickKnob.BorderSizePixel = 0
-    JoystickKnob.Parent = JoystickFrame
-    
-    local JoystickActive = false
-    local JoystickCenter = Vector2.new(60, 60)
-    
-    JoystickFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            JoystickActive = true
-        end
+        BodyGyro.CFrame = CFrame.new(Vector3.zero, cameraCF.LookVector * Vector3.new(1, 0, 1) + Vector3.new(0, 1, 0))
     end)
-    
-    JoystickFrame.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            JoystickActive = false
-            JoystickKnob.Position = UDim2.new(0.5, -20, 0.5, -20)
-            BodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        end
-    end)
-    
-    JoystickFrame.InputChanged:Connect(function(input)
-        if JoystickActive and input.UserInputType == Enum.UserInputType.Touch and Flying then
-            local Delta = input.Position - JoystickFrame.AbsolutePosition - JoystickCenter
-            local MaxDistance = 40
-            if Delta.Magnitude > MaxDistance then
-                Delta = Delta.Unit * MaxDistance
-            end
-            JoystickKnob.Position = UDim2.new(0, JoystickCenter.X + Delta.X - 20, 0, JoystickCenter.Y + Delta.Y - 20)
-            
-            local Forward = Camera.CFrame.LookVector * (-Delta.Y / MaxDistance) * FlySpeed
-            local Right = Camera.CFrame.RightVector * (Delta.X / MaxDistance) * FlySpeed
-            BodyVelocity.Velocity = Forward + Right
-        end
-    end)
+    StarterGui:SetCore("SendNotification", {Title = "YinYang Fly", Text = "ВКЛЮЧЕН | Joy/WASD | A/Space Up | X/Shift Down", Duration = 3})
 end
 
-function StopFly()
-    Flying = false
-    if BodyGyro then BodyGyro:Destroy() end
-    if BodyVelocity then BodyVelocity:Destroy() end
-    if CoreGui:FindFirstChild("MobileFlyJoystick") then
-        CoreGui.MobileFlyJoystick:Destroy()
+local function DisableFly()
+    FlyEnabled = false
+    pcall(function() ContextActionService:UnbindAction(FlyAction .. "Move") end)
+    pcall(function() ContextActionService:UnbindAction(FlyAction .. "Up") end)
+    pcall(function() ContextActionService:UnbindAction(FlyAction .. "Down") end)
+    if BodyVelocity then BodyVelocity:Destroy(); BodyVelocity = nil end
+    if BodyGyro then BodyGyro:Destroy(); BodyGyro = nil end
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = false end
     end
+    StarterGui:SetCore("SendNotification", {Title = "YinYang Fly", Text = "ВЫКЛЮЧЕН", Duration = 2})
 end
 
--- // NOCLIP
-local NoclipConnection
-function ToggleNoClip()
-    if NoClipEnabled then
-        NoclipConnection = RunService.Stepped:Connect(function()
-            if LocalPlayer.Character then
-                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                    if part:IsA("BasePart") and part.CanCollide then
-                        part.CanCollide = false
-                    end
+-- ESP
+local function CreateESP(player)
+    if player == LocalPlayer then return end
+    if ESPObjects[player] then return end
+    local function setupESP()
+        if not player.Character or not player.Character:FindFirstChild("Head") then return end
+        local Billboard = Instance.new("BillboardGui")
+        Billboard.Adornee = player.Character.Head
+        Billboard.Size = UDim2.new(0, 200, 0, 30)
+        Billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+        Billboard.AlwaysOnTop = true
+        local Frame = Instance.new("Frame")
+        Frame.Size = UDim2.new(1, 0, 1, 0)
+        Frame.BackgroundColor3 = Color3.fromRGB(30, 0, 0)
+        Frame.BackgroundTransparency = 0.4
+        Frame.BorderSizePixel = 1
+        Frame.BorderColor3 = Color3.fromRGB(180, 0, 0)
+        Frame.Parent = Billboard
+        local Text = Instance.new("TextLabel")
+        Text.Size = UDim2.new(1, 0, 1, 0)
+        Text.BackgroundTransparency = 1
+        Text.Text = player.Name
+        Text.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Text.TextSize = 12
+        Text.Font = Enum.Font.Code
+        Text.Parent = Frame
+        Billboard.Parent = CoreGui
+        ESPObjects[player] = {billboard = Billboard, connection = nil}
+        local hum = player.Character:FindFirstChild("Humanoid")
+        if hum then
+            local conn
+            conn = hum:GetPropertyChangedSignal("Health"):Connect(function()
+                if player.Character and player.Character:FindFirstChild("Humanoid") then
+                    Text.Text = player.Name .. " [" .. math.floor(hum.Health) .. " HP]"
                 end
-            end
-        end)
-    else
-        if NoclipConnection then NoclipConnection:Disconnect() end
-    end
-end
-
--- // ESP
-local ESPObjects = {}
-function ToggleESP()
-    if ESPEnabled then
-        local function CreateESP(player)
-            if player == LocalPlayer then return end
-            
-            local function Create()
-                local Billboard = Instance.new("BillboardGui")
-                Billboard.Adornee = player.Character and player.Character:FindFirstChild("Head")
-                Billboard.Size = UDim2.new(0, 100, 0, 40)
-                Billboard.StudsOffset = Vector3.new(0, 2, 0)
-                Billboard.AlwaysOnTop = true
-                
-                local Frame = Instance.new("Frame")
-                Frame.Size = UDim2.new(1, 0, 1, 0)
-                Frame.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-                Frame.BackgroundTransparency = 0.5
-                Frame.Parent = Billboard
-                
-                local Text = Instance.new("TextLabel")
-                Text.Size = UDim2.new(1, 0, 1, 0)
-                Text.BackgroundTransparency = 1
-                Text.Text = player.Name .. "\nHP: " .. (player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health or "?")
-                Text.TextColor3 = Color3.fromRGB(255, 255, 255)
-                Text.TextSize = 12
-                Text.Font = Enum.Font.Gotham
-                Text.Parent = Frame
-                
-                Billboard.Parent = CoreGui
-                ESPObjects[player] = Billboard
-            end
-            
-            if player.Character then Create() end
-            player.CharacterAdded:Connect(function()
-                wait(0.5)
-                Create()
             end)
-        end
-        
-        for _, player in pairs(Players:GetPlayers()) do
-            CreateESP(player)
-        end
-        Players.PlayerAdded:Connect(CreateESP)
-        Players.PlayerRemoving:Connect(function(player)
-            if ESPObjects[player] then
-                ESPObjects[player]:Destroy()
-                ESPObjects[player] = nil
-            end
-        end)
-    else
-        for _, obj in pairs(ESPObjects) do
-            obj:Destroy()
-        end
-        ESPObjects = {}
-    end
-end
-
--- // SPEED HACK
-function ToggleSpeedHack()
-    if SpeedHackEnabled then
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.WalkSpeed = 100
-        end
-    else
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.WalkSpeed = 16
+            ESPObjects[player].connection = conn
+            Text.Text = player.Name .. " [" .. math.floor(hum.Health) .. " HP]"
         end
     end
+    if player.Character then setupESP() end
+    player.CharacterAdded:Connect(function() task.wait(0.5); setupESP() end)
 end
 
--- // INFINITE JUMP
-local JumpConnection
-function ToggleInfiniteJump()
+local function EnableESP()
+    ESPEnabled = true
+    for _, player in pairs(Players:GetPlayers()) do CreateESP(player) end
+    Players.PlayerAdded:Connect(function(player) if ESPEnabled then CreateESP(player) end end)
+    Players.PlayerRemoving:Connect(function(player)
+        if ESPObjects[player] then
+            if ESPObjects[player].connection then ESPObjects[player].connection:Disconnect() end
+            ESPObjects[player].billboard:Destroy()
+            ESPObjects[player] = nil
+        end
+    end)
+    StarterGui:SetCore("SendNotification", {Title = "YinYang ESP", Text = "ВКЛЮЧЕН", Duration = 2})
+end
+
+local function DisableESP()
+    ESPEnabled = false
+    for player, data in pairs(ESPObjects) do
+        if data.connection then data.connection:Disconnect() end
+        if data.billboard then data.billboard:Destroy() end
+    end
+    ESPObjects = {}
+    StarterGui:SetCore("SendNotification", {Title = "YinYang ESP", Text = "ВЫКЛЮЧЕН", Duration = 2})
+end
+-- // YinYang: MurdTroll Hub v2.0 - Terminal Edition [PART 2/2]
+
+-- SPEED HACK
+local function ToggleSpeedHack()
+    SpeedHackEnabled = not SpeedHackEnabled
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = SpeedHackEnabled and 100 or 16
+    end
+    StarterGui:SetCore("SendNotification", {Title = "YinYang Speed", Text = SpeedHackEnabled and "100" or "16", Duration = 2})
+end
+
+-- INFINITE JUMP
+local function ToggleInfiniteJump()
+    InfiniteJumpEnabled = not InfiniteJumpEnabled
     if InfiniteJumpEnabled then
         JumpConnection = UserInputService.JumpRequest:Connect(function()
             if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -389,108 +361,161 @@ function ToggleInfiniteJump()
             end
         end)
     else
-        if JumpConnection then JumpConnection:Disconnect() end
+        if JumpConnection then JumpConnection:Disconnect(); JumpConnection = nil end
     end
+    StarterGui:SetCore("SendNotification", {Title = "YinYang InfJump", Text = InfiniteJumpEnabled and "ВКЛ" or "ВЫКЛ", Duration = 2})
 end
 
--- // AIMBOT
-local AimbotConnection
-function ToggleAimbot()
+-- AIMBOT
+local function ToggleAimbot()
+    AimbotEnabled = not AimbotEnabled
     if AimbotEnabled then
         AimbotConnection = RunService.RenderStepped:Connect(function()
-            local ClosestPlayer = nil
-            local ClosestDistance = math.huge
-            
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
-                    local Distance = (player.Character.Head.Position - Camera.CFrame.Position).Magnitude
-                    local ScreenPos, OnScreen = Camera:WorldToScreenPoint(player.Character.Head.Position)
-                    if OnScreen and Distance < ClosestDistance then
-                        ClosestDistance = Distance
-                        ClosestPlayer = player
+            local closest, minDist = nil, math.huge
+            for _, plr in pairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
+                    local pos, onScreen = Camera:WorldToScreenPoint(plr.Character.Head.Position)
+                    if onScreen then
+                        local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                        if dist < minDist then minDist = dist; closest = plr end
                     end
                 end
             end
-            
-            if ClosestPlayer then
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, ClosestPlayer.Character.Head.Position)
+            if closest and closest.Character and closest.Character:FindFirstChild("Head") then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, closest.Character.Head.Position)
             end
         end)
     else
-        if AimbotConnection then AimbotConnection:Disconnect() end
-        Camera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+        if AimbotConnection then AimbotConnection:Disconnect(); AimbotConnection = nil end
+        if LocalPlayer.Character then Camera.CameraSubject = LocalPlayer.Character:FindFirstChild("Humanoid") end
     end
+    StarterGui:SetCore("SendNotification", {Title = "YinYang Aimbot", Text = AimbotEnabled and "ВКЛ" or "ВЫКЛ", Duration = 2})
 end
 
--- // TELEPORT TO CURSOR
-function TeleportToCursor()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local Target = Mouse.Hit.p
-        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Target + Vector3.new(0, 3, 0))
-    end
-end
-
--- // GOD MODE
-local GodModeEnabled = false
-function ToggleGodMode()
+-- GOD MODE
+local function ToggleGodMode()
     GodModeEnabled = not GodModeEnabled
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        if GodModeEnabled then
-            LocalPlayer.Character.Humanoid.MaxHealth = math.huge
-            LocalPlayer.Character.Humanoid.Health = math.huge
-        else
-            LocalPlayer.Character.Humanoid.MaxHealth = 100
-            LocalPlayer.Character.Humanoid.Health = 100
-        end
+        local hum = LocalPlayer.Character.Humanoid
+        hum.MaxHealth = GodModeEnabled and math.huge or 100
+        hum.Health = GodModeEnabled and math.huge or hum.MaxHealth
     end
+    StarterGui:SetCore("SendNotification", {Title = "YinYang GodMode", Text = GodModeEnabled and "ВКЛ" or "ВЫКЛ", Duration = 2})
 end
 
--- // ANTI AFK
-local AntiAFKConnection
-function ToggleAntiAFK()
-    if AntiAFKConnection then
-        AntiAFKConnection:Disconnect()
-        AntiAFKConnection = nil
-    else
+-- ANTI AFK
+local function ToggleAntiAFK()
+    AntiAFKEnabled = not AntiAFKEnabled
+    if AntiAFKEnabled then
+        local VU = game:GetService("VirtualUser")
         AntiAFKConnection = RunService.Heartbeat:Connect(function()
-            game:GetService("VirtualUser"):CaptureController()
-            game:GetService("VirtualUser"):Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-            wait(1)
-            game:GetService("VirtualUser"):Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            pcall(function()
+                VU:CaptureController()
+                VU:Button2Down(Vector2.new(0, 0), Camera.CFrame)
+                task.wait(0.5)
+                VU:Button2Up(Vector2.new(0, 0), Camera.CFrame)
+            end)
         end)
-    end
-end
-
--- // FULL BRIGHT
-function ToggleFullBright()
-    if not game:GetService("Lighting"):FindFirstChild("MurdTroll_Brightness") then
-        local Lighting = Instance.new("ColorCorrectionEffect")
-        Lighting.Name = "MurdTroll_Brightness"
-        Lighting.Brightness = 0.5
-        Lighting.Contrast = 0.5
-        Lighting.Saturation = 0
-        Lighting.TintColor = Color3.fromRGB(255, 255, 255)
-        Lighting.Parent = game:GetService("Lighting")
     else
-        game:GetService("Lighting").MurdTroll_Brightness:Destroy()
+        if AntiAFKConnection then AntiAFKConnection:Disconnect(); AntiAFKConnection = nil end
     end
+    StarterGui:SetCore("SendNotification", {Title = "YinYang AntiAFK", Text = AntiAFKEnabled and "ВКЛ" or "ВЫКЛ", Duration = 2})
 end
 
--- // FPS BOOST
-function FPSBoost()
-    for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("Part") or v:IsA("Union") or v:IsA("MeshPart") then
-            if v.Material == Enum.Material.Grass or v.Material == Enum.Material.Fabric then
-                v.Material = Enum.Material.SmoothPlastic
-            end
+-- FULL BRIGHT
+local function ToggleFullBright()
+    FullBrightEnabled = not FullBrightEnabled
+    if FullBrightEnabled then
+        local fb = Instance.new("ColorCorrectionEffect")
+        fb.Name = "YinYang_Brightness"
+        fb.Brightness = 0.4
+        fb.Contrast = 0.3
+        fb.Saturation = -0.5
+        fb.TintColor = Color3.fromRGB(255, 255, 255)
+        fb.Parent = Lighting
+    else
+        if Lighting:FindFirstChild("YinYang_Brightness") then
+            Lighting.YinYang_Brightness:Destroy()
         end
     end
-    game:GetService("Lighting").GlobalShadows = false
-    game:GetService("Lighting").FogEnd = 100000
-    settings().Rendering.QualityLevel = 1
+    StarterGui:SetCore("SendNotification", {Title = "YinYang FullBright", Text = FullBrightEnabled and "ВКЛ" or "ВЫКЛ", Duration = 2})
 end
 
--- // ЗАПУСК GUI
-CreateGUI()
+-- FPS BOOST
+local function FPSBoost()
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and (obj.Material == Enum.Material.Grass or obj.Material == Enum.Material.Fabric) then
+            obj.Material = Enum.Material.SmoothPlastic
+        end
+    end
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 99999
+    pcall(function() settings().Rendering.QualityLevel = 1 end)
+    StarterGui:SetCore("SendNotification", {Title = "YinYang FPS Boost", Text = "Применен", Duration = 2})
+end
 
--- // YinYang: Система полностью активна, все протоколы выполнены
+-- TP TO CURSOR
+local function TeleportToCursor()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local target = Mouse.Hit.Position + Vector3.new(0, 3, 0)
+        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(target)
+    end
+    StarterGui:SetCore("SendNotification", {Title = "YinYang TP", Text = "Телепорт", Duration = 2})
+end
+
+-- CLEANUP
+function CleanupAll()
+    FlyEnabled = false; DisableFly()
+    NoClipEnabled = false; DisableNoClip()
+    ESPEnabled = false; DisableESP()
+    SpeedHackEnabled = false
+    InfiniteJumpEnabled = false
+    AimbotEnabled = false
+    GodModeEnabled = false
+    AntiAFKEnabled = false
+    FullBrightEnabled = false
+    if JumpConnection then JumpConnection:Disconnect() end
+    if AimbotConnection then AimbotConnection:Disconnect() end
+    if AntiAFKConnection then AntiAFKConnection:Disconnect() end
+    if Lighting:FindFirstChild("YinYang_Brightness") then Lighting.YinYang_Brightness:Destroy() end
+end
+
+-- RESPAWN HANDLER
+LocalPlayer.CharacterAdded:Connect(function(char)
+    task.wait(0.3)
+    if FlyEnabled then FlyEnabled = false; task.wait(0.1); FlyEnabled = true; EnableFly() end
+    if NoClipEnabled then NoClipEnabled = false; task.wait(0.1); NoClipEnabled = true; EnableNoClip() end
+    if GodModeEnabled then
+        local hum = char:WaitForChild("Humanoid", 3)
+        if hum then hum.MaxHealth = math.huge; hum.Health = math.huge end
+    end
+end)
+
+-- BUTTONS
+AddSeparator("MOVEMENT")
+AddButton("REAL FLY (Joy/WASD)", function() FlyEnabled = not FlyEnabled; if FlyEnabled then EnableFly() else DisableFly() end end)
+AddButton("NOCLIP (Walls)", function() if NoClipEnabled then DisableNoClip() else EnableNoClip() end end)
+AddButton("SPEED HACK", ToggleSpeedHack)
+AddButton("INFINITE JUMP", ToggleInfiniteJump)
+AddButton("TP TO CURSOR", TeleportToCursor)
+
+AddSeparator("COMBAT")
+AddButton("AIMBOT", ToggleAimbot)
+AddButton("GOD MODE", ToggleGodMode)
+
+AddSeparator("VISUALS")
+AddButton("ESP PLAYERS", function() if ESPEnabled then DisableESP() else EnableESP() end end)
+AddButton("FULL BRIGHT", ToggleFullBright)
+AddButton("FPS BOOST", FPSBoost)
+
+AddSeparator("UTILITY")
+AddButton("ANTI AFK", ToggleAntiAFK)
+AddButton("EXIT HUB", function() CleanupAll(); ScreenGui:Destroy() end)
+
+AddSeparator("YinYang System Active")
+
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
+
+StarterGui:SetCore("SendNotification", {Title = "YinYang // MurdTroll Hub", Text = "Терминал загружен. Все протоколы активны.", Duration = 4})
+
+-- // YinYang: Полный код завершен. Система готова.
