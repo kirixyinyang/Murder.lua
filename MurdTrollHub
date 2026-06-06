@@ -1,521 +1,60 @@
--- // YinYang: MurdTroll Hub v2.0 - Terminal Edition [PART 1/2]
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local ContextActionService = game:GetService("ContextActionService")
-local TweenService = game:GetService("TweenService")
-local StarterGui = game:GetService("StarterGui")
-local Lighting = game:GetService("Lighting")
-local Camera = workspace.CurrentCamera
-local CoreGui = game:GetService("CoreGui")
-
-local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
-
-local FlyEnabled = false
-local NoClipEnabled = false
-local ESPEnabled = false
-local ESPObjects = {}
-local SpeedHackEnabled = false
-local InfiniteJumpEnabled = false
-local AimbotEnabled = false
-local GodModeEnabled = false
-local AntiAFKEnabled = false
-local FullBrightEnabled = false
-
-local BodyVelocity, BodyGyro
-local FlyAction = "YinYangFly"
-local MoveVector = Vector3.zero
-local FLY_SPEED = 50
-local NoclipConnection
-local JumpConnection
-local AimbotConnection
-local AntiAFKConnection
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MurdTrollTerminal"
-ScreenGui.Parent = CoreGui
-ScreenGui.ResetOnSpawn = false
-
-local Terminal = Instance.new("Frame")
-Terminal.Name = "Terminal"
-Terminal.Size = UDim2.new(0, 320, 0, 420)
-Terminal.Position = UDim2.new(0.5, -160, 0.5, -210)
-Terminal.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-Terminal.BorderSizePixel = 1
-Terminal.BorderColor3 = Color3.fromRGB(180, 0, 0)
-Terminal.Active = true
-Terminal.Draggable = true
-Terminal.Parent = ScreenGui
-
-local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 30)
-TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = Terminal
-
-local TitleText = Instance.new("TextLabel")
-TitleText.Size = UDim2.new(1, -40, 1, 0)
-TitleText.BackgroundTransparency = 1
-TitleText.Text = "MurdTroll Hub v2.0 // Terminal"
-TitleText.TextColor3 = Color3.fromRGB(180, 0, 0)
-TitleText.TextSize = 13
-TitleText.Font = Enum.Font.Code
-TitleText.TextXAlignment = Enum.TextXAlignment.Left
-TitleText.Position = UDim2.new(0, 8, 0, 0)
-TitleText.Parent = TitleBar
-
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -30, 0, 0)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
-CloseBtn.BorderSizePixel = 0
-CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-CloseBtn.TextSize = 14
-CloseBtn.Font = Enum.Font.Code
-CloseBtn.Parent = TitleBar
-CloseBtn.MouseButton1Click:Connect(function()
-    CleanupAll()
-    ScreenGui:Destroy()
-end)
-
-local StatusBar = Instance.new("Frame")
-StatusBar.Size = UDim2.new(1, 0, 0, 20)
-StatusBar.Position = UDim2.new(0, 0, 1, -20)
-StatusBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-StatusBar.BorderSizePixel = 0
-StatusBar.Parent = Terminal
-
-local StatusText = Instance.new("TextLabel")
-StatusText.Size = UDim2.new(1, -10, 1, 0)
-StatusText.BackgroundTransparency = 1
-StatusText.Text = "YinYang: Active | FPS: --"
-StatusText.TextColor3 = Color3.fromRGB(140, 140, 140)
-StatusText.TextSize = 10
-StatusText.Font = Enum.Font.Code
-StatusText.TextXAlignment = Enum.TextXAlignment.Left
-StatusText.Position = UDim2.new(0, 5, 0, 0)
-StatusText.Parent = StatusBar
-
-RunService.RenderStepped:Connect(function()
-    StatusText.Text = "YinYang: Active | FPS: " .. math.floor(1 / (RunService.RenderStepped:Wait() + 0.0001))
-end)
-
-local ScrollFrame = Instance.new("ScrollingFrame")
-ScrollFrame.Size = UDim2.new(1, -4, 1, -54)
-ScrollFrame.Position = UDim2.new(0, 2, 0, 32)
-ScrollFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-ScrollFrame.BorderSizePixel = 0
-ScrollFrame.ScrollBarThickness = 4
-ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(180, 0, 0)
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-ScrollFrame.Parent = Terminal
-
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Padding = UDim.new(0, 2)
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Parent = ScrollFrame
-
-local function AddButton(name, callback)
-    local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, -10, 0, 30)
-    Btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    Btn.BorderSizePixel = 1
-    Btn.BorderColor3 = Color3.fromRGB(60, 0, 0)
-    Btn.Text = "> " .. name
-    Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    Btn.TextSize = 12
-    Btn.Font = Enum.Font.Code
-    Btn.TextXAlignment = Enum.TextXAlignment.Left
-    Btn.TextTruncate = Enum.TextTruncate.None
-    Btn.Parent = ScrollFrame
-    Btn.MouseEnter:Connect(function()
-        TweenService:Create(Btn, TweenInfo.new(0.15), {
-            BackgroundColor3 = Color3.fromRGB(40, 0, 0),
-            BorderColor3 = Color3.fromRGB(180, 0, 0),
-            TextColor3 = Color3.fromRGB(255, 255, 255)
-        }):Play()
-    end)
-    Btn.MouseLeave:Connect(function()
-        TweenService:Create(Btn, TweenInfo.new(0.15), {
-            BackgroundColor3 = Color3.fromRGB(25, 25, 25),
-            BorderColor3 = Color3.fromRGB(60, 0, 0),
-            TextColor3 = Color3.fromRGB(200, 200, 200)
-        }):Play()
-    end)
-    Btn.MouseButton1Click:Connect(callback)
-    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 5)
-    return Btn
+-- // YinYang: MurdTroll Hub v3.0 - Complete
+local function yX(k)
+    local b=string.byte;local r="";local x={0xA7,0x3F,0xD1,0x88,0x4E,0xB2,0x19,0xFC,0x65,0xDA,0x33,0x9C,0x71,0xE5,0x48,0xBF,0x12,0x8D,0x56,0xC3}
+    for i=1,#k do local c=b(k,i)local xv=x[(i-1)%#x+1]r=r..string.char(c~xv)end
+    return r
 end
+local vM=function(n)local t={0x3E8,0x7D0,0xBB8,0xFA0,0x1388,0x1770,0x1B58,0x1F40,0x2328,0x2710,0x2AF8,0x2EE0,0x32C8,0x36B0,0x3A98,0x3E80}local r=0;for i=1,#t do if n>=t[i]then r=i end end;return r end
 
-local function AddSeparator(text)
-    local Sep = Instance.new("TextLabel")
-    Sep.Size = UDim2.new(1, -10, 0, 20)
-    Sep.BackgroundTransparency = 1
-    Sep.Text = "-- " .. text .. " --"
-    Sep.TextColor3 = Color3.fromRGB(120, 0, 0)
-    Sep.TextSize = 10
-    Sep.Font = Enum.Font.Code
-    Sep.Parent = ScrollFrame
+local ENC1=[=[-- // YinYang: MurdTroll Hub v3.0 - Encrypted [PART 1/2]
+local function yX(k,s)
+    local b=string.byte;local r="";local x={0xA7,0x3F,0xD1,0x88,0x4E,0xB2,0x19,0xFC,0x65,0xDA,0x33,0x9C,0x71,0xE5,0x48,0xBF,0x12,0x8D,0x56,0xC3}
+    for i=1,#k do local c=b(k,i)local xv=x[(i-1)%#x+1]r=r..string.char(c~xv)end
+    return r
 end
+local vM=function(n)local t={0x3E8,0x7D0,0xBB8,0xFA0,0x1388,0x1770,0x1B58,0x1F40,0x2328,0x2710,0x2AF8,0x2EE0,0x32C8,0x36B0,0x3A98,0x3E80}local r=0;for i=1,#t do if n>=t[i]then r=i end end;return r end
+local a=game:GetService(yX("\xd2\x8d\x92\x82\xd1\x80\x96",1))local b=game:GetService(yX("\xc5\x8b\x87\xc7\x80\x9d\xa9\x8a\x82\x8f",1))local c=game:GetService(yX("\xc8\x8f\x96\x9d\xc4\x87\x8c\x8a\x8d\xc7\x80\x9d\xa9\x8a\x82\x8f",1))local d=game:GetService(yX("\xc2\x86\x87\x8d\x80\x9e\x8d\xc2\x8a\x8d\x8a\x86\x87\xc7\x80\x9d\xa9\x8a\x82\x8f",1))local e=game:GetService(yX("\xc3\x8c\x80\x8f\x87\xc7\x80\x9d\xa9\x8a\x82\x8f",1))local f=game:GetService(yX("\xc7\x8d\x92\x9d\x8d\x80\x9d\xc2\x8a\x8a",1))local g=game:GetService(yX("\xc1\x8a\x86\x8e\x8d\x8a\x87\x86",1))local h=workspace.CurrentCamera local i=game:GetService(yX("\xc2\x86\x9d\x80\xc2\x8a\x8a",1))local j=a.LocalPlayer local k=j:GetMouse()local l=false local m=false local n=false local o={}local p=false local q=false local r=false local s=false local t=false local u=false local v,w local x=50 local y,z=0,0 local A local B local C local D
+local E=Instance.new(yX("\xc7\x82\x9d\x80\x8f\x87\xc2\x8a\x8a",1))E.Name=yX("\xc2\x8a\x9d\x85\xc3\x9d\x86\x93\x93\xc3\x80\x9d\x92\x8a\x87\x92\x93",1)E.Parent=i E.ResetOnSpawn=false 
+local F=Instance.new(yX("\xc0\x9d\x92\x92\x8f",1))F.Name=yX("\xc3\x80\x9d\x92\x8a\x87\x92\x93",1)F.Size=UDim2.new(0,320,0,420)F.Position=UDim2.new(0.5,-160,0.5,-210)F.BackgroundColor3=Color3.fromRGB(12,12,12)F.BorderSizePixel=1 F.BorderColor3=Color3.fromRGB(180,0,0)F.Active=true F.Draggable=true F.Parent=E
+local G=Instance.new(yX("\xc0\x9d\x92\x92\x8f",1))G.Size=UDim2.new(1,0,0,30)G.BackgroundColor3=Color3.fromRGB(20,20,20)G.BorderSizePixel=0 G.Parent=F
+local H=Instance.new(yX("\xc3\x80\x9d\x8c\xcd\x92\x8b\x80\x93",1))H.Size=UDim2.new(1,-40,1,0)H.BackgroundTransparency=1 H.Text=yX("\xc2\x8a\x9d\x85\xc3\x9d\x86\x93\x93\xc7\x8a\x8b\xa9\x85\xe1\xf8\xf9\xa7\xa7\xc3\x80\x9d\x92\x8a\x87\x92\x93",1)H.TextColor3=Color3.fromRGB(180,0,0)H.TextSize=13 H.Font=Enum.Font.Code H.TextXAlignment=Enum.TextXAlignment.Left H.Position=UDim2.new(0,8,0,0)H.Parent=G
+local I=Instance.new(yX("\xc3\x80\x9d\x8c\xc1\x8a\x8d\x8d\x86\x87",1))I.Size=UDim2.new(0,30,0,30)I.Position=UDim2.new(1,-30,0,0)I.BackgroundColor3=Color3.fromRGB(40,0,0)I.BorderSizePixel=0 I.Text=yX("\xa7",1)I.TextColor3=Color3.fromRGB(255,100,100)I.TextSize=14 I.Font=Enum.Font.Code I.Parent=G I.MouseButton1Click:Connect(function()J()E:Destroy()end)
+local K=Instance.new(yX("\xc0\x9d\x92\x92\x8f",1))K.Size=UDim2.new(1,0,0,20)K.Position=UDim2.new(0,0,1,-20)K.BackgroundColor3=Color3.fromRGB(20,20,20)K.BorderSizePixel=0 K.Parent=F
+local L=Instance.new(yX("\xc3\x80\x9d\x8c\xcd\x92\x8b\x80\x93",1))L.Size=UDim2.new(1,-10,1,0)L.BackgroundTransparency=1 L.Text=yX("\xa4\x8a\x87\xa4\x92\x87\x86\xa4\x8b\x8a\x8d\x8f\x80\x94\xa4\xc4\xc1\xc7\xa4\xe0\xe0",1)L.TextColor3=Color3.fromRGB(140,140,140)L.TextSize=10 L.Font=Enum.Font.Code L.TextXAlignment=Enum.TextXAlignment.Left L.Position=UDim2.new(0,5,0,0)L.Parent=K
+b.RenderStepped:Connect(function()L.Text=yX("\xa4\x8a\x87\xa4\x92\x87\x86\xa4\x8b\x8a\x8d\x8f\x80\x94\xa4\xc4\xc1\xc7\xa4\xe0",1)..math.floor(1/(b.RenderStepped:Wait()+0.0001))end)
+local M=Instance.new(yX("\xc7\x82\x9d\x86\x93\x93\x8a\x87\x86\xc0\x9d\x92\x92\x8f",1))M.Size=UDim2.new(1,-4,1,-54)M.Position=UDim2.new(0,2,0,32)M.BackgroundColor3=Color3.fromRGB(15,15,15)M.BorderSizePixel=0 M.ScrollBarThickness=4 M.ScrollBarImageColor3=Color3.fromRGB(180,0,0)M.CanvasSize=UDim2.new(0,0,0,0)M.Parent=F
+local N=Instance.new(yX("\xc4\xc4\xcd\x8a\x96\x8d\xcd\x92\x8a\x86\x8a\x8d\x8d",1))N.Padding=UDim.new(0,2)N.HorizontalAlignment=Enum.HorizontalAlignment.Center N.SortOrder=Enum.SortOrder.LayoutOrder N.Parent=M
+local function O(P,Q)local R=Instance.new(yX("\xc3\x80\x9d\x8c\xc1\x8a\x8d\x8d\x86\x87",1))R.Size=UDim2.new(1,-10,0,30)R.BackgroundColor3=Color3.fromRGB(25,25,25)R.BorderSizePixel=1 R.BorderColor3=Color3.fromRGB(60,0,0)R.Text=yX("\xe1",1)..P R.TextColor3=Color3.fromRGB(200,200,200)R.TextSize=12 R.Font=Enum.Font.Code R.TextXAlignment=Enum.TextXAlignment.Left R.TextTruncate=Enum.TextTruncate.None R.Parent=M R.MouseEnter:Connect(function()e:Create(R,TweenInfo.new(0.15),{BackgroundColor3=Color3.fromRGB(40,0,0),BorderColor3=Color3.fromRGB(180,0,0),TextColor3=Color3.fromRGB(255,255,255)}):Play()end)R.MouseLeave:Connect(function()e:Create(R,TweenInfo.new(0.15),{BackgroundColor3=Color3.fromRGB(25,25,25),BorderColor3=Color3.fromRGB(60,0,0),TextColor3=Color3.fromRGB(200,200,200)}):Play()end)R.MouseButton1Click:Connect(Q)M.CanvasSize=UDim2.new(0,0,0,N.AbsoluteContentSize.Y+5)return R end
+local function S(T)local U=Instance.new(yX("\xc3\x80\x9d\x8c\xcd\x92\x8b\x80\x93",1))U.Size=UDim2.new(1,-10,0,20)U.BackgroundTransparency=1 U.Text=yX("\xe0\xe0",1)..T..yX("\xa4\xa4",1)U.TextColor3=Color3.fromRGB(120,0,0)U.TextSize=10 U.Font=Enum.Font.Code U.Parent=M end
+local function V()m=true if B then B:Disconnect()end B=b.Stepped:Connect(function()if not m then return end local W=j.Character if not W then return end for _,X in pairs(W:GetDescendants())do if X:IsA(yX("\xc1\x92\x96\x80\xc3\x92\x9d\x8d",1))and X.CanCollide==true then X.CanCollide=false end end end)f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc1\x86\xc2\x93\x8a\x8c",1),Text=yX("\xc2\xc1",1),Duration=2})end
+local function Y()m=false if B then B:Disconnect()B=nil end local W=j.Character if not W then return end for _,X in pairs(W:GetDescendants())do if X:IsA(yX("\xc1\x92\x96\x80\xc3\x92\x9d\x8d",1))then X.CanCollide=true end end f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc1\x86\xc2\x93\x8a\x8c",1),Text=yX("\xc2\xc4\xc4",1),Duration=2})end
+function Z()if l then return end local W=j.Character if not W then return end local _=W:FindFirstChild(yX("\xc3\x8a\x92\x92\x87\x86\x8a\x85\xc1\x86\x86\x8d\xc3\x92\x9d\x8d",1))local a0=W:FindFirstChildOfClass(yX("\xc3\x8a\x92\x92\x87\x86\x8a\x85",1))if not _ or not a0 then return end a0.PlatformStand=true v=Instance.new(yX("\xc1\x86\x85\xa2\xc9\x80\x93\x86\x82\x8a\x8d",1))v.MaxForce=Vector3.new(4e5,4e5,4e5)v.Velocity=Vector3.zero v.P=5000 v.Parent=_ w=Instance.new(yX("\xc1\x86\x85\xa2\xc2\xa2\x9d\x86",1))w.MaxTorque=Vector3.new(4e5,4e5,4e5)w.P=30000 w.CFrame=_.CFrame w.Parent=_
+d:BindAction(yX("\xc0\x93\xa2\xc0\x86\xa2",1),function(a1,a2,a3)if a3.KeyCode==Enum.KeyCode.Thumbstick1 then if a2==Enum.UserInputState.Change then y=a3.Position.X z=a3.Position.Y else y,z=0,0 end end end,false,Enum.KeyCode.Thumbstick1)l=true A=b.Heartbeat:Connect(function()if not l or not v or not w then return end local a4=j.Character and j.Character:FindFirstChild(yX("\xc3\x8a\x92\x92\x87\x86\x8a\x85\xc1\x86\x86\x8d\xc3\x92\x9d\x8d",1))if not a4 then return end local a5=h.CFrame local a6=a5.LookVector local a7=a5.RightVector local a8=Vector3.zero if c:IsKeyDown(Enum.KeyCode.W)then a8=a8+a6 end if c:IsKeyDown(Enum.KeyCode.S)then a8=a8-a6 end if c:IsKeyDown(Enum.KeyCode.A)then a8=a8-a7 end if c:IsKeyDown(Enum.KeyCode.D)then a8=a8+a7 end if math.abs(y)>0.1 or math.abs(z)>0.1 then a8=a8+(a6*z)+(a7*y)end if c:IsKeyDown(Enum.KeyCode.Space)or c:IsKeyDown(Enum.KeyCode.ButtonA)then a8=a8+Vector3.new(0,1,0)end if c:IsKeyDown(Enum.KeyCode.LeftShift)or c:IsKeyDown(Enum.KeyCode.ButtonX)then a8=a8-Vector3.new(0,1,0)end if a8.Magnitude>0 then v.Velocity=a8.Unit*x else v.Velocity=Vector3.zero end w.CFrame=CFrame.new(Vector3.zero,a5.LookVector)end)f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc0\x93\xa2",1),Text=yX("\xc2\xc1\xa4\xc0\x86\xa2\xe1\xc4\xc2\xc7\xc3\xa4\xc2\xe1\xc7\x8c\x92\x82\x80\xa4\xc4\x8c\xa4\xa7\xe1\xc7\x8e\x8a\x8d\x8d\xa4\xc3\x86\x8c\x87",1),Duration=3})end
+function a9()if not l then return end l=false if A then A:Disconnect()A=nil end pcall(function()d:UnbindAction(yX("\xc0\x93\xa2\xc0\x86\xa2",1))end)if v then v:Destroy()v=nil end if w then w:Destroy()w=nil end local W=j.Character if W then local a0=W:FindFirstChildOfClass(yX("\xc3\x8a\x92\x92\x87\x86\x8a\x85",1))if a0 then a0.PlatformStand=false end end y,z=0,0 f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc0\x93\xa2",1),Text=yX("\xc2\xc4\xc4",1),Duration=2})end
+local function aa(ab)if ab==j then return end if o[ab]then return end local function ac()if not ab.Character or not ab.Character:FindFirstChild(yX("\xc3\x80\x9d\x92\x85",1))then return end local ad=Instance.new(yX("\xc1\x8a\x93\x93\x8b\x86\x92\x9d\x85\xc2\x8a\x8a",1))ad.Adornee=ab.Character.Head ad.Size=UDim2.new(0,200,0,30)ad.StudsOffset=Vector3.new(0,2.5,0)ad.AlwaysOnTop=true local ae=Instance.new(yX("\xc0\x9d\x92\x92\x8f",1))ae.Size=UDim2.new(1,0,1,0)ae.BackgroundColor3=Color3.fromRGB(30,0,0)ae.BackgroundTransparency=0.4 ae.BorderSizePixel=1 ae.BorderColor3=Color3.fromRGB(180,0,0)ae.Parent=ad local af=Instance.new(yX("\xc3\x80\x9d\x8c\xcd\x92\x8b\x80\x93",1))af.Size=UDim2.new(1,0,1,0)af.BackgroundTransparency=1 af.Text=ab.Name af.TextColor3=Color3.fromRGB(255,255,255)af.TextSize=12 af.Font=Enum.Font.Code af.Parent=ae ad.Parent=i o[ab]={billboard=ad,connection=nil}local ag=ab.Character:FindFirstChild(yX("\xc3\x8a\x92\x92\x87\x86\x8a\x85",1))if ag then local ah ah=ag:GetPropertyChangedSignal(yX("\xc3\x80\x9d\x92\x8d\x8e",1)):Connect(function()if ab.Character and ab.Character:FindFirstChild(yX("\xc3\x8a\x92\x92\x87\x86\x8a\x85",1))then af.Text=ab.Name..yX("\xa4\xe6",1)..math.floor(ag.Health)..yX("\xa4\xc3\xc7\xe7",1)end end)o[ab].connection=ah af.Text=ab.Name..yX("\xa4\xe6",1)..math.floor(ag.Health)..yX("\xa4\xc3\xc7\xe7",1)end end if ab.Character then ac()end ab.CharacterAdded:Connect(function()task.wait(0.5)ac()end)end
+local function ai()n=true for _,ab in pairs(a:GetPlayers())do aa(ab)end a.PlayerAdded:Connect(function(ab)if n then aa(ab)end end)a.PlayerRemoving:Connect(function(ab)if o[ab]then if o[ab].connection then o[ab].connection:Disconnect()end o[ab].billboard:Destroy()o[ab]=nil end end)f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc2\xc7\xc6",1),Text=yX("\xc2\xc1",1),Duration=2})end
+local function aj()n=false for ab,ak in pairs(o)do if ak.connection then ak.connection:Disconnect()end if ak.billboard then ak.billboard:Destroy()end end o={}f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc2\xc7\xc6",1),Text=yX("\xc2\xc4\xc4",1),Duration=2})end]=]
+local ENC2=[=[-- // YinYang: MurdTroll Hub v3.0 - Encrypted [PART 2/2]
+local function yX(k,s)local b=string.byte;local r="";local x={0xA7,0x3F,0xD1,0x88,0x4E,0xB2,0x19,0xFC,0x65,0xDA,0x33,0x9C,0x71,0xE5,0x48,0xBF,0x12,0x8D,0x56,0xC3}for i=1,#k do local c=b(k,i)local xv=x[(i-1)%#x+1]r=r..string.char(c~xv)end;return r end
+local vM=function(n)local t={0x3E8,0x7D0,0xBB8,0xFA0,0x1388,0x1770,0x1B58,0x1F40,0x2328,0x2710,0x2AF8,0x2EE0,0x32C8,0x36B0,0x3A98,0x3E80}local r=0;for i=1,#t do if n>=t[i]then r=i end end;return r end
+local function al()p=not p if j.Character and j.Character:FindFirstChild(yX("\xc3\x8a\x92\x92\x87\x86\x8a\x85",1))then j.Character.Humanoid.WalkSpeed=p and vM(0x2710)or vM(0x3E8)end f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc7\x8c\x80\x80\x85",1),Text=p and"100"or"16",Duration=2})end
+local function am()q=not q if q then C=c.JumpRequest:Connect(function()if j.Character and j.Character:FindFirstChild(yX("\xc3\x8a\x92\x92\x87\x86\x8a\x85",1))then j.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)end end)else if C then C:Disconnect()C=nil end end f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc4\x87\x8d\xc0\x8a\x92\x8c",1),Text=q and"ON"or"OFF",Duration=2})end
+local function an()r=not r if r then D=b.RenderStepped:Connect(function()local ao,ap=nil,math.huge for _,aq in pairs(a:GetPlayers())do if aq~=j and aq.Character and aq.Character:FindFirstChild(yX("\xc3\x80\x9d\x92\x85",1))then local ar,as=h:WorldToScreenPoint(aq.Character.Head.Position)if as then local at=(Vector2.new(ar.X,ar.Y)-Vector2.new(h.ViewportSize.X/2,h.ViewportSize.Y/2)).Magnitude if at<ap then ap=at ao=aq end end end end if ao and ao.Character and ao.Character:FindFirstChild(yX("\xc3\x80\x9d\x92\x85",1))then h.CFrame=CFrame.new(h.CFrame.Position,ao.Character.Head.Position)end end)else if D then D:Disconnect()D=nil end if j.Character then h.CameraSubject=j.Character:FindFirstChild(yX("\xc3\x8a\x92\x92\x87\x86\x8a\x85",1))end end f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc2\x8a\x92\x8b\x86\x8d",1),Text=r and"ON"or"OFF",Duration=2})end
+local function au()s=not s if j.Character and j.Character:FindFirstChild(yX("\xc3\x8a\x92\x92\x87\x86\x8a\x85",1))then local av=j.Character.Humanoid av.MaxHealth=s and math.huge or vM(0x2710)av.Health=s and math.huge or av.MaxHealth end f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc2\x86\x85\xc2\x86\x85\x80",1),Text=s and"ON"or"OFF",Duration=2})end
+local function aw()t=not t if t then local ax=game:GetService(yX("\xc9\x8a\x9d\x8d\x8a\x92\x93\xc4\x96\x80\x9d",1))E=b.Heartbeat:Connect(function()pcall(function()ax:CaptureController()ax:Button2Down(Vector2.new(0,0),h.CFrame)task.wait(0.5)ax:Button2Up(Vector2.new(0,0),h.CFrame)end)end)else if E then E:Disconnect()E=nil end end f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc2\x87\x8d\x8a\xc2\xc0\xc3",1),Text=t and"ON"or"OFF",Duration=2})end
+local function ay()u=not u if u then local az=Instance.new(yX("\xc2\x86\x93\x86\x9d\xc2\x86\x9d\x9d\x80\x82\x8d\x8a\x86\x87\xc2\x8b\x8b\x80\x82\x8d",1))az.Name=yX("\xa4\x8a\x87\xa4\x92\x87\x86\xa4\xc1\x9d\x8a\x86\x8e\x8d\x87\x80\x96",1)az.Brightness=0.4 az.Contrast=0.3 az.Saturation=-0.5 az.TintColor=Color3.fromRGB(255,255,255)az.Parent=g else if g:FindFirstChild(yX("\xa4\x8a\x87\xa4\x92\x87\x86\xa4\xc1\x9d\x8a\x86\x8e\x8d\x87\x80\x96",1))then g[yX("\xa4\x8a\x87\xa4\x92\x87\x86\xa4\xc1\x9d\x8a\x86\x8e\x8d\x87\x80\x96",1)]:Destroy()end end f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc0\x8a\x93\x93\xc1\x9d\x8a\x86\x8e\x8d\x87",1),Text=u and"ON"or"OFF",Duration=2})end
+local function aA()for _,aB in pairs(workspace:GetDescendants())do if aB:IsA(yX("\xc1\x92\x96\x80\xc3\x92\x9d\x8d",1))and(aB.Material==Enum.Material.Grass or aB.Material==Enum.Material.Fabric)then aB.Material=Enum.Material.SmoothPlastic end end g.GlobalShadows=false g.FogEnd=99999 pcall(function()settings().Rendering.QualityLevel=1 end)f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc0\xc6\xc7\xc1\x86\x86\x96\x8d",1),Text="Applied",Duration=2})end
+local function aC()if j.Character and j.Character:FindFirstChild(yX("\xc3\x8a\x92\x92\x87\x86\x8a\x85\xc1\x86\x86\x8d\xc3\x92\x9d\x8d",1))then local aD=k.Hit.Position+Vector3.new(0,3,0)j.Character.HumanoidRootPart.CFrame=CFrame.new(aD)end f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc3\x80\xc3\x80",1),Text="Done",Duration=2})end
+function J()if l then a9()end if m then Y()end if n then aj()end p=false q=false r=false s=false t=false u=false if C then C:Disconnect()end if D then D:Disconnect()end if E then E:Disconnect()end if g:FindFirstChild(yX("\xa4\x8a\x87\xa4\x92\x87\x86\xa4\xc1\x9d\x8a\x86\x8e\x8d\x87\x80\x96",1))then g[yX("\xa4\x8a\x87\xa4\x92\x87\x86\xa4\xc1\x9d\x8a\x86\x8e\x8d\x87\x80\x96",1)]:Destroy()end end
+j.CharacterAdded:Connect(function(aE)task.wait(0.3)if l then l=false task.wait(0.1)Z()end if m then m=false task.wait(0.1)V()end if s then local aF=aE:WaitForChild(yX("\xc3\x8a\x92\x92\x87\x86\x8a\x85",1),3)if aF then aF.MaxHealth=math.huge aF.Health=math.huge end end end)
+S(yX("\xc2\xc2\xc9\xc2\xc2\xc2\xc1\xc3",1))O(yX("\xc1\xc2\xc2\xcd\xc0\xcd\xa4\xe5\xc0\x86\xa2\xe1\xc4\xc2\xc7\xc3\xe7",1),function()if l then a9()else Z()end end)O(yX("\xc1\xc2\xc1\xcd\xc4\xc6\xa4\xe5\xc4\x92\x93\x93\x96\xe7",1),function()if m then Y()else V()end end)O(yX("\xc7\xc6\xc2\xc2\xc3\xc7\xc2\xc2\xc3",1),al)O(yX("\xc4\xc1\xc4\xc4\xc1\xc4\xc2\xc4\xc2\xc2\xc6\xc1\xc2\xc6",1),am)O(yX("\xc3\xc6\xc3\xc2\xc4\xc2\xc1\xc7\xc2\xc1\xc6",1),aC)
+S(yX("\xc2\xc2\xc2\xc1\xc2\xc3",1))O(yX("\xc2\xc4\xc2\xc1\xc2\xc6",1),an)O(yX("\xc2\xc2\xc3\xc2\xc2\xc2\xc3\xc2",1),au)
+S(yX("\xc9\xc4\xc7\xc8\xc2\xcd\xc7",1))O(yX("\xc2\xc7\xc6\xc6\xcd\xcd\xc2\xc4\xc2\xc7\xc7\xc6",1),function()if n then aj()else ai()end end)O(yX("\xc0\xc8\xcd\xcd\xc1\xc6\xc4\xc6\xc3\xc6\xc3",1),ay)O(yX("\xc0\xc6\xc7\xc1\xc6\xc6\xc7\xc6",1),aA)
+S(yX("\xc8\xc3\xc4\xcd\xc4\xc3\xc4",1))O(yX("\xc2\xc1\xc3\xc4\xc2\xc0\xc3",1),aw)O(yX("\xc2\xc7\xc4\xc3\xc3\xc8\xc1",1),function()J()E:Destroy()end)
+S(yX("\xa4\x8a\x87\xa4\x92\x87\x86\xa4\xc7\xa2\x96\x8d\x80\x92\xa4\xc2\x82\x8d\x8a\x94\x80",1))M.CanvasSize=UDim2.new(0,0,0,N.AbsoluteContentSize.Y+20)
+f:SetCore(yX("\xc7\x80\x87\x85\xc1\x86\x8d\x8a\x8d\x8a\x82\x92\x8d\x8a\x86\x87",1),{Title=yX("\xc2\x8a\x9d\x85\xc3\x9d\x86\x93\x93\xc3\x8a\x8b\xa9\x85\xe6\xf8",1),Text=yX("\xc3\x80\x9d\x92\x8a\x87\x92\x93\xa4\x93\x86\x92\x85\x80\x85\xa4\xc2\x93\x93\xa4\x8c\x9d\x86\x8d\x86\x82\x86\x93\x96\xa4\x92\x82\x8d\x8a\x94\x80",1),Duration=4})
+print(yX("\xe1\xe1\xa4\xa4\x8a\x87\xa4\x92\x87\x86\xa4\xc2\x8a\x9d\x85\xc3\x9d\x86\x93\x93\xc3\x8a\x8b\xa9\x85\xe6\xf8\xa4\x8b\x92\x86\x8a\x8d\xa4\x84\x92\x87\x86",1))]=]
 
--- NOCLIP
-local function EnableNoClip()
-    NoClipEnabled = true
-    if NoclipConnection then NoclipConnection:Disconnect() end
-    NoclipConnection = RunService.Stepped:Connect(function()
-        if not NoClipEnabled then return end
-        local char = LocalPlayer.Character
-        if not char then return end
-        for _, part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") and part.CanCollide == true then
-                part.CanCollide = false
-            end
-        end
-    end)
-    StarterGui:SetCore("SendNotification", {Title = "YinYang NoClip", Text = "ВКЛЮЧЕН", Duration = 2})
-end
-
-local function DisableNoClip()
-    NoClipEnabled = false
-    if NoclipConnection then NoclipConnection:Disconnect(); NoclipConnection = nil end
-    local char = LocalPlayer.Character
-    if not char then return end
-    for _, part in pairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then part.CanCollide = true end
-    end
-    StarterGui:SetCore("SendNotification", {Title = "YinYang NoClip", Text = "ВЫКЛЮЧЕН", Duration = 2})
-end
-
--- FLY
-local function OnFlyMoveAction(actionName, inputState, inputObject)
-    if not FlyEnabled then return end
-    if inputState == Enum.UserInputState.Begin or inputState == Enum.UserInputState.Change then
-        MoveVector = Vector3.new(inputObject.Position.X, 0, inputObject.Position.Y)
-    elseif inputState == Enum.UserInputState.End then
-        MoveVector = Vector3.zero
-    end
-end
-
-local function OnFlyUpAction(actionName, inputState, inputObject)
-    if not FlyEnabled or not BodyVelocity then return end
-    if inputState == Enum.UserInputState.Begin then
-        BodyVelocity.Velocity = BodyVelocity.Velocity + Vector3.new(0, FLY_SPEED, 0)
-    elseif inputState == Enum.UserInputState.End then
-        BodyVelocity.Velocity = BodyVelocity.Velocity - Vector3.new(0, FLY_SPEED, 0)
-    end
-end
-
-local function OnFlyDownAction(actionName, inputState, inputObject)
-    if not FlyEnabled or not BodyVelocity then return end
-    if inputState == Enum.UserInputState.Begin then
-        BodyVelocity.Velocity = BodyVelocity.Velocity - Vector3.new(0, FLY_SPEED, 0)
-    elseif inputState == Enum.UserInputState.End then
-        BodyVelocity.Velocity = BodyVelocity.Velocity + Vector3.new(0, FLY_SPEED, 0)
-    end
-end
-
-local function EnableFly()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
-    hum.PlatformStand = true
-    BodyVelocity = Instance.new("BodyVelocity")
-    BodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
-    BodyVelocity.Velocity = Vector3.zero
-    BodyVelocity.P = 5000
-    BodyVelocity.Parent = hrp
-    BodyGyro = Instance.new("BodyGyro")
-    BodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
-    BodyGyro.P = 30000
-    BodyGyro.CFrame = hrp.CFrame
-    BodyGyro.Parent = hrp
-    ContextActionService:BindAction(FlyAction .. "Move", OnFlyMoveAction, false,
-        Enum.KeyCode.Thumbstick1, Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D)
-    ContextActionService:BindAction(FlyAction .. "Up", OnFlyUpAction, false,
-        Enum.KeyCode.ButtonA, Enum.KeyCode.Space)
-    ContextActionService:BindAction(FlyAction .. "Down", OnFlyDownAction, false,
-        Enum.KeyCode.ButtonX, Enum.KeyCode.LeftShift)
-    RunService.Heartbeat:Connect(function()
-        if not FlyEnabled or not BodyVelocity or not BodyGyro then return end
-        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
-        local cameraCF = Camera.CFrame
-        local forward = Vector3.new(cameraCF.LookVector.X, 0, cameraCF.LookVector.Z).Unit
-        local right = Vector3.new(cameraCF.RightVector.X, 0, cameraCF.RightVector.Z).Unit
-        local moveDirection = (forward * -MoveVector.Z) + (right * MoveVector.X)
-        if moveDirection.Magnitude > 0 then
-            BodyVelocity.Velocity = Vector3.new(moveDirection.Unit.X * FLY_SPEED, BodyVelocity.Velocity.Y, moveDirection.Unit.Z * FLY_SPEED)
-        else
-            BodyVelocity.Velocity = Vector3.new(0, BodyVelocity.Velocity.Y, 0)
-        end
-        BodyGyro.CFrame = CFrame.new(Vector3.zero, cameraCF.LookVector * Vector3.new(1, 0, 1) + Vector3.new(0, 1, 0))
-    end)
-    StarterGui:SetCore("SendNotification", {Title = "YinYang Fly", Text = "ВКЛЮЧЕН | Joy/WASD | A/Space Up | X/Shift Down", Duration = 3})
-end
-
-local function DisableFly()
-    FlyEnabled = false
-    pcall(function() ContextActionService:UnbindAction(FlyAction .. "Move") end)
-    pcall(function() ContextActionService:UnbindAction(FlyAction .. "Up") end)
-    pcall(function() ContextActionService:UnbindAction(FlyAction .. "Down") end)
-    if BodyVelocity then BodyVelocity:Destroy(); BodyVelocity = nil end
-    if BodyGyro then BodyGyro:Destroy(); BodyGyro = nil end
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.PlatformStand = false end
-    end
-    StarterGui:SetCore("SendNotification", {Title = "YinYang Fly", Text = "ВЫКЛЮЧЕН", Duration = 2})
-end
-
--- ESP
-local function CreateESP(player)
-    if player == LocalPlayer then return end
-    if ESPObjects[player] then return end
-    local function setupESP()
-        if not player.Character or not player.Character:FindFirstChild("Head") then return end
-        local Billboard = Instance.new("BillboardGui")
-        Billboard.Adornee = player.Character.Head
-        Billboard.Size = UDim2.new(0, 200, 0, 30)
-        Billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-        Billboard.AlwaysOnTop = true
-        local Frame = Instance.new("Frame")
-        Frame.Size = UDim2.new(1, 0, 1, 0)
-        Frame.BackgroundColor3 = Color3.fromRGB(30, 0, 0)
-        Frame.BackgroundTransparency = 0.4
-        Frame.BorderSizePixel = 1
-        Frame.BorderColor3 = Color3.fromRGB(180, 0, 0)
-        Frame.Parent = Billboard
-        local Text = Instance.new("TextLabel")
-        Text.Size = UDim2.new(1, 0, 1, 0)
-        Text.BackgroundTransparency = 1
-        Text.Text = player.Name
-        Text.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Text.TextSize = 12
-        Text.Font = Enum.Font.Code
-        Text.Parent = Frame
-        Billboard.Parent = CoreGui
-        ESPObjects[player] = {billboard = Billboard, connection = nil}
-        local hum = player.Character:FindFirstChild("Humanoid")
-        if hum then
-            local conn
-            conn = hum:GetPropertyChangedSignal("Health"):Connect(function()
-                if player.Character and player.Character:FindFirstChild("Humanoid") then
-                    Text.Text = player.Name .. " [" .. math.floor(hum.Health) .. " HP]"
-                end
-            end)
-            ESPObjects[player].connection = conn
-            Text.Text = player.Name .. " [" .. math.floor(hum.Health) .. " HP]"
-        end
-    end
-    if player.Character then setupESP() end
-    player.CharacterAdded:Connect(function() task.wait(0.5); setupESP() end)
-end
-
-local function EnableESP()
-    ESPEnabled = true
-    for _, player in pairs(Players:GetPlayers()) do CreateESP(player) end
-    Players.PlayerAdded:Connect(function(player) if ESPEnabled then CreateESP(player) end end)
-    Players.PlayerRemoving:Connect(function(player)
-        if ESPObjects[player] then
-            if ESPObjects[player].connection then ESPObjects[player].connection:Disconnect() end
-            ESPObjects[player].billboard:Destroy()
-            ESPObjects[player] = nil
-        end
-    end)
-    StarterGui:SetCore("SendNotification", {Title = "YinYang ESP", Text = "ВКЛЮЧЕН", Duration = 2})
-end
-
-local function DisableESP()
-    ESPEnabled = false
-    for player, data in pairs(ESPObjects) do
-        if data.connection then data.connection:Disconnect() end
-        if data.billboard then data.billboard:Destroy() end
-    end
-    ESPObjects = {}
-    StarterGui:SetCore("SendNotification", {Title = "YinYang ESP", Text = "ВЫКЛЮЧЕН", Duration = 2})
-end
--- // YinYang: MurdTroll Hub v2.0 - Terminal Edition [PART 2/2]
-
--- SPEED HACK
-local function ToggleSpeedHack()
-    SpeedHackEnabled = not SpeedHackEnabled
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = SpeedHackEnabled and 100 or 16
-    end
-    StarterGui:SetCore("SendNotification", {Title = "YinYang Speed", Text = SpeedHackEnabled and "100" or "16", Duration = 2})
-end
-
--- INFINITE JUMP
-local function ToggleInfiniteJump()
-    InfiniteJumpEnabled = not InfiniteJumpEnabled
-    if InfiniteJumpEnabled then
-        JumpConnection = UserInputService.JumpRequest:Connect(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end)
-    else
-        if JumpConnection then JumpConnection:Disconnect(); JumpConnection = nil end
-    end
-    StarterGui:SetCore("SendNotification", {Title = "YinYang InfJump", Text = InfiniteJumpEnabled and "ВКЛ" or "ВЫКЛ", Duration = 2})
-end
-
--- AIMBOT
-local function ToggleAimbot()
-    AimbotEnabled = not AimbotEnabled
-    if AimbotEnabled then
-        AimbotConnection = RunService.RenderStepped:Connect(function()
-            local closest, minDist = nil, math.huge
-            for _, plr in pairs(Players:GetPlayers()) do
-                if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
-                    local pos, onScreen = Camera:WorldToScreenPoint(plr.Character.Head.Position)
-                    if onScreen then
-                        local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                        if dist < minDist then minDist = dist; closest = plr end
-                    end
-                end
-            end
-            if closest and closest.Character and closest.Character:FindFirstChild("Head") then
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, closest.Character.Head.Position)
-            end
-        end)
-    else
-        if AimbotConnection then AimbotConnection:Disconnect(); AimbotConnection = nil end
-        if LocalPlayer.Character then Camera.CameraSubject = LocalPlayer.Character:FindFirstChild("Humanoid") end
-    end
-    StarterGui:SetCore("SendNotification", {Title = "YinYang Aimbot", Text = AimbotEnabled and "ВКЛ" or "ВЫКЛ", Duration = 2})
-end
-
--- GOD MODE
-local function ToggleGodMode()
-    GodModeEnabled = not GodModeEnabled
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        local hum = LocalPlayer.Character.Humanoid
-        hum.MaxHealth = GodModeEnabled and math.huge or 100
-        hum.Health = GodModeEnabled and math.huge or hum.MaxHealth
-    end
-    StarterGui:SetCore("SendNotification", {Title = "YinYang GodMode", Text = GodModeEnabled and "ВКЛ" or "ВЫКЛ", Duration = 2})
-end
-
--- ANTI AFK
-local function ToggleAntiAFK()
-    AntiAFKEnabled = not AntiAFKEnabled
-    if AntiAFKEnabled then
-        local VU = game:GetService("VirtualUser")
-        AntiAFKConnection = RunService.Heartbeat:Connect(function()
-            pcall(function()
-                VU:CaptureController()
-                VU:Button2Down(Vector2.new(0, 0), Camera.CFrame)
-                task.wait(0.5)
-                VU:Button2Up(Vector2.new(0, 0), Camera.CFrame)
-            end)
-        end)
-    else
-        if AntiAFKConnection then AntiAFKConnection:Disconnect(); AntiAFKConnection = nil end
-    end
-    StarterGui:SetCore("SendNotification", {Title = "YinYang AntiAFK", Text = AntiAFKEnabled and "ВКЛ" or "ВЫКЛ", Duration = 2})
-end
-
--- FULL BRIGHT
-local function ToggleFullBright()
-    FullBrightEnabled = not FullBrightEnabled
-    if FullBrightEnabled then
-        local fb = Instance.new("ColorCorrectionEffect")
-        fb.Name = "YinYang_Brightness"
-        fb.Brightness = 0.4
-        fb.Contrast = 0.3
-        fb.Saturation = -0.5
-        fb.TintColor = Color3.fromRGB(255, 255, 255)
-        fb.Parent = Lighting
-    else
-        if Lighting:FindFirstChild("YinYang_Brightness") then
-            Lighting.YinYang_Brightness:Destroy()
-        end
-    end
-    StarterGui:SetCore("SendNotification", {Title = "YinYang FullBright", Text = FullBrightEnabled and "ВКЛ" or "ВЫКЛ", Duration = 2})
-end
-
--- FPS BOOST
-local function FPSBoost()
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and (obj.Material == Enum.Material.Grass or obj.Material == Enum.Material.Fabric) then
-            obj.Material = Enum.Material.SmoothPlastic
-        end
-    end
-    Lighting.GlobalShadows = false
-    Lighting.FogEnd = 99999
-    pcall(function() settings().Rendering.QualityLevel = 1 end)
-    StarterGui:SetCore("SendNotification", {Title = "YinYang FPS Boost", Text = "Применен", Duration = 2})
-end
-
--- TP TO CURSOR
-local function TeleportToCursor()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local target = Mouse.Hit.Position + Vector3.new(0, 3, 0)
-        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(target)
-    end
-    StarterGui:SetCore("SendNotification", {Title = "YinYang TP", Text = "Телепорт", Duration = 2})
-end
-
--- CLEANUP
-function CleanupAll()
-    FlyEnabled = false; DisableFly()
-    NoClipEnabled = false; DisableNoClip()
-    ESPEnabled = false; DisableESP()
-    SpeedHackEnabled = false
-    InfiniteJumpEnabled = false
-    AimbotEnabled = false
-    GodModeEnabled = false
-    AntiAFKEnabled = false
-    FullBrightEnabled = false
-    if JumpConnection then JumpConnection:Disconnect() end
-    if AimbotConnection then AimbotConnection:Disconnect() end
-    if AntiAFKConnection then AntiAFKConnection:Disconnect() end
-    if Lighting:FindFirstChild("YinYang_Brightness") then Lighting.YinYang_Brightness:Destroy() end
-end
-
--- RESPAWN HANDLER
-LocalPlayer.CharacterAdded:Connect(function(char)
-    task.wait(0.3)
-    if FlyEnabled then FlyEnabled = false; task.wait(0.1); FlyEnabled = true; EnableFly() end
-    if NoClipEnabled then NoClipEnabled = false; task.wait(0.1); NoClipEnabled = true; EnableNoClip() end
-    if GodModeEnabled then
-        local hum = char:WaitForChild("Humanoid", 3)
-        if hum then hum.MaxHealth = math.huge; hum.Health = math.huge end
-    end
-end)
-
--- BUTTONS
-AddSeparator("MOVEMENT")
-AddButton("REAL FLY (Joy/WASD)", function() FlyEnabled = not FlyEnabled; if FlyEnabled then EnableFly() else DisableFly() end end)
-AddButton("NOCLIP (Walls)", function() if NoClipEnabled then DisableNoClip() else EnableNoClip() end end)
-AddButton("SPEED HACK", ToggleSpeedHack)
-AddButton("INFINITE JUMP", ToggleInfiniteJump)
-AddButton("TP TO CURSOR", TeleportToCursor)
-
-AddSeparator("COMBAT")
-AddButton("AIMBOT", ToggleAimbot)
-AddButton("GOD MODE", ToggleGodMode)
-
-AddSeparator("VISUALS")
-AddButton("ESP PLAYERS", function() if ESPEnabled then DisableESP() else EnableESP() end end)
-AddButton("FULL BRIGHT", ToggleFullBright)
-AddButton("FPS BOOST", FPSBoost)
-
-AddSeparator("UTILITY")
-AddButton("ANTI AFK", ToggleAntiAFK)
-AddButton("EXIT HUB", function() CleanupAll(); ScreenGui:Destroy() end)
-
-AddSeparator("YinYang System Active")
-
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
-
-StarterGui:SetCore("SendNotification", {Title = "YinYang // MurdTroll Hub", Text = "Терминал загружен. Все протоколы активны.", Duration = 4})
-
--- // YinYang: Полный код завершен. Система готова.
+local code=yX(ENC1).."\n"..yX(ENC2)
+local ok,err=pcall(loadstring(code))
+if not ok then warn("YinYang: "..err) end
