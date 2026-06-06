@@ -1,4 +1,4 @@
--- // YinYang: MM2 Hub v3.0 - Compact [PART 1/4]
+-- // YinYang: MM2 Hub v3.0 - Aimbot Circle [PART 1/4]
 
 local Players=game:GetService("Players")
 local TweenService=game:GetService("TweenService")
@@ -16,17 +16,19 @@ local C={bg=Color3.fromRGB(8,8,8),bg2=Color3.fromRGB(14,14,14),bg3=Color3.fromRG
 red=Color3.fromRGB(200,0,0),redBright=Color3.fromRGB(255,30,30),redDark=Color3.fromRGB(60,0,0),
 text=Color3.fromRGB(235,235,235),textDim=Color3.fromRGB(100,100,100)}
 
-local ESPMurderer,ESPSheriff,ESPGun=false,false,false
+local ESPPlayers,ESPMurderer,ESPSheriff,ESPGun=false,false,false,false
 local FlyEnabled,NoClipEnabled,AimbotEnabled,GodModeEnabled=false,false,false,false
-local AntiAFKEnabled,FullBrightEnabled,AutoShootEnabled,InstantKillEnabled=false,false,false,false
+local AntiAFKEnabled,FullBrightEnabled,InstantKillEnabled=false,false,false
 local FlingEnabled,KillAllEnabled,FarmEnabled=false,false,false
 local IgnoreSheriff,IgnoreInnocent=false,false
+local AimbotFOV=120
+local ShowAimbotCircle=true
+local AimbotCircle=nil
 local WalkspeedVal,JumpPowerVal,GravityVal=16,50,196.2
 local FarmCooldown=0.1
 local BodyVelocity,BodyGyro,FlyHeartbeatConn
-local NoclipConn,AimbotConn,AntiAFKConn,AutoShootConn,InstantKillConn,FarmConn,KillAllConn
+local NoclipConn,AimbotConn,AntiAFKConn,InstantKillConn,FarmConn,KillAllConn
 local FLY_SPEED=80
-local ESPHighlights={}
 
 local function hasKnife(plr)
     if plr.Backpack and plr.Backpack:FindFirstChild("Knife")then return true end
@@ -217,9 +219,8 @@ local function MakeSlider(label,desc,min,max,default,callback)
     btnPlus.MouseButton1Click:Connect(function()val=val+1;update()end)
     return{set=function(v)val=v;update()end,get=function()return val end}
 end
--- // YinYang: MM2 Hub v3.0 - Compact [PART 2/4]
 
--- ESP (метод X Hub — Highlight + BillboardGui)
+-- ESP (Highlight + BillboardGui)
 local function addESP(part,color,text)
     if not part then return end
     local hl=Instance.new("Highlight");hl.FillColor=color;hl.OutlineColor=color
@@ -238,6 +239,15 @@ local function removeESP(part)
     end end
 end
 
+-- ESP People (все игроки белым)
+local function checkPeopleESP()
+    for _,plr in pairs(Players:GetPlayers())do
+        if plr~=LocalPlayer and plr.Character and not hasKnife(plr)and not hasGun(plr)then
+            removeESP(plr.Character);addESP(plr.Character,Color3.new(1,1,1),plr.Name)
+        end
+    end
+end
+-- ESP Murderer (красный)
 local function checkMurdererESP()
     for _,plr in pairs(Players:GetPlayers())do
         if plr~=LocalPlayer and plr.Character and hasKnife(plr)then
@@ -245,6 +255,7 @@ local function checkMurdererESP()
         end
     end
 end
+-- ESP Sheriff (синий)
 local function checkSheriffESP()
     for _,plr in pairs(Players:GetPlayers())do
         if plr~=LocalPlayer and plr.Character and hasGun(plr)then
@@ -252,16 +263,47 @@ local function checkSheriffESP()
         end
     end
 end
+-- ESP Gun (зелёный)
 local function checkGunESP()
     local gunDrop=Workspace:FindFirstChild("Normal")and Workspace.Normal:FindFirstChild("GunDrop")
     if gunDrop then removeESP(gunDrop);addESP(gunDrop,Color3.new(0,1,0),"Dropped Gun")end
 end
 
 RunService.RenderStepped:Connect(function()
+    if ESPPlayers then checkPeopleESP()end
     if ESPMurderer then checkMurdererESP()end
     if ESPSheriff then checkSheriffESP()end
     if ESPGun then checkGunESP()end
 end)
+
+-- Aimbot Circle (визуальный)
+local function CreateAimbotCircle()
+    if AimbotCircle then AimbotCircle:Destroy()end
+    AimbotCircle=Instance.new("Frame")
+    AimbotCircle.Size=UDim2.new(0,AimbotFOV,0,AimbotFOV)
+    AimbotCircle.Position=UDim2.new(0.5,-AimbotFOV/2,0.5,-AimbotFOV/2)
+    AimbotCircle.BackgroundTransparency=1
+    AimbotCircle.BorderSizePixel=1
+    AimbotCircle.BorderColor3=Color3.fromRGB(255,0,0)
+    AimbotCircle.ZIndex=100
+    AimbotCircle.Parent=ScreenGui
+    local inner=Instance.new("Frame")
+    inner.Size=UDim2.new(1,-4,1,-4);inner.Position=UDim2.new(0,2,0,2)
+    inner.BackgroundTransparency=1;inner.BorderSizePixel=1
+    inner.BorderColor3=Color3.fromRGB(255,0,0);inner.ZIndex=101;inner.Parent=AimbotCircle
+    local dot=Instance.new("Frame")
+    dot.Size=UDim2.new(0,4,0,4);dot.Position=UDim2.new(0.5,-2,0.5,-2)
+    dot.BackgroundColor3=Color3.fromRGB(255,0,0);dot.BorderSizePixel=0
+    dot.ZIndex=102;dot.Parent=AimbotCircle
+    Instance.new("UICorner",dot).CornerRadius=UDim.new(1,0)
+end
+local function UpdateAimbotCircle()
+    if not ShowAimbotCircle then if AimbotCircle then AimbotCircle.Visible=false end;return end
+    if not AimbotCircle or AimbotCircle.Size~=UDim2.new(0,AimbotFOV,0,AimbotFOV)then CreateAimbotCircle()end
+    AimbotCircle.Visible=true
+end
+CreateAimbotCircle()
+-- // YinYang: MM2 Hub v3.0 - Aimbot Circle [PART 2/4]
 
 -- Fly
 function EnableFly()
@@ -317,28 +359,34 @@ local function ToggleNoClip(v)
     end
 end
 
--- Aimbot
+-- Aimbot с кругом FOV
 local function ToggleAimbot(v)
     AimbotEnabled=v
-    if v then AimbotConn=RunService.RenderStepped:Connect(function()
-        local closest,minDist=nil,math.huge
-        for _,plr in pairs(Players:GetPlayers())do
-            if plr~=LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head")then
-                local targetRole="INNOCENT"
-                if hasKnife(plr)then targetRole="MURDERER"elseif hasGun(plr)then targetRole="SHERIFF"end
-                if IgnoreSheriff and targetRole=="SHERIFF"then continue end
-                if IgnoreInnocent and targetRole=="INNOCENT"then continue end
-                local pos,onScreen=Camera:WorldToScreenPoint(plr.Character.Head.Position)
-                if onScreen then local dist=(Vector2.new(pos.X,pos.Y)-Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y/2)).Magnitude
-                    if dist<minDist then minDist=dist;closest=plr end
+    if v then UpdateAimbotCircle()
+        AimbotConn=RunService.RenderStepped:Connect(function()
+            UpdateAimbotCircle()
+            local closest,minDist=nil,math.huge
+            for _,plr in pairs(Players:GetPlayers())do
+                if plr~=LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head")then
+                    local targetRole="INNOCENT"
+                    if hasKnife(plr)then targetRole="MURDERER"elseif hasGun(plr)then targetRole="SHERIFF"end
+                    if IgnoreSheriff and targetRole=="SHERIFF"then continue end
+                    if IgnoreInnocent and targetRole=="INNOCENT"then continue end
+                    local pos,onScreen=Camera:WorldToScreenPoint(plr.Character.Head.Position)
+                    if onScreen then
+                        local screenCenter=Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y/2)
+                        local dist=(Vector2.new(pos.X,pos.Y)-screenCenter).Magnitude
+                        if dist<minDist and dist<AimbotFOV/2 then minDist=dist;closest=plr end
+                    end
                 end
             end
-        end
-        if closest and closest.Character and closest.Character:FindFirstChild("Head")then
-            Camera.CFrame=CFrame.new(Camera.CFrame.Position,closest.Character.Head.Position)
-        end
-    end)else if AimbotConn then AimbotConn:Disconnect();AimbotConn=nil end
+            if closest and closest.Character and closest.Character:FindFirstChild("Head")then
+                Camera.CFrame=CFrame.new(Camera.CFrame.Position,closest.Character.Head.Position)
+            end
+        end)
+    else if AimbotConn then AimbotConn:Disconnect();AimbotConn=nil end
         if LocalPlayer.Character then Camera.CameraSubject=LocalPlayer.Character:FindFirstChild("Humanoid")end
+        if AimbotCircle then AimbotCircle.Visible=false end
     end
 end
 
@@ -400,25 +448,7 @@ local function StartFling(targetFunc)
     end);coroutine.resume(FlingThread)
 end
 local function StopFling()FlingEnabled=false;FlingThread=nil end
--- // YinYang: MM2 Hub v3.0 - Compact [PART 3/4]
-
--- Auto Shoot
-local function ToggleAutoShoot(v)
-    AutoShootEnabled=v
-    if v then AutoShootConn=RunService.Heartbeat:Connect(function()
-        local role=getMyRole();local tool=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-        if not tool then return end;local gunTool=(tool.Name=="Gun"or tool:FindFirstChild("Gun"))
-        if role=="SHERIFF"and gunTool then local murd=getMurderer()
-            if murd and murd.Character and murd.Character:FindFirstChild("Head")then
-                pcall(function()tool.RemoteEvent:FireServer(murd.Character.Head.Position,murd.Character.Head)end)
-            end
-        elseif role=="MURDERER"and gunTool then local sher=getSheriff()
-            if sher and sher.Character and sher.Character:FindFirstChild("Head")then
-                pcall(function()tool.RemoteEvent:FireServer(sher.Character.Head.Position,sher.Character.Head)end)
-            end
-        end
-    end)else if AutoShootConn then AutoShootConn:Disconnect();AutoShootConn=nil end end
-end
+-- // YinYang: MM2 Hub v3.0 - Aimbot Circle [PART 3/4]
 
 -- Instant Kill
 local function ToggleInstantKill(v)
@@ -438,7 +468,7 @@ local function ToggleInstantKill(v)
     end)else if InstantKillConn then InstantKillConn:Disconnect();InstantKillConn=nil end end
 end
 
--- Kill All (метод X Hub с GetAttribute)
+-- Kill All
 local function KillAll()
     KillAllEnabled=true
     local function killLoop()
@@ -455,7 +485,7 @@ local function KillAll()
 end
 local function StopKillAll()KillAllEnabled=false end
 
--- Coin Farm (метод X Hub)
+-- Coin Farm
 local function ToggleFarm(v)
     FarmEnabled=v
     if v then FarmConn=RunService.Heartbeat:Connect(function()
@@ -468,7 +498,7 @@ local function ToggleFarm(v)
     end)else if FarmConn then FarmConn:Disconnect();FarmConn=nil end end
 end
 
--- TP функции (SetPrimaryPartCFrame)
+-- TP функции
 local function TPMurderer()
     local murd=getMurderer()
     if murd and murd.Character then
@@ -505,16 +535,6 @@ local function TPPlayer()
     end
     if closest and minDist<200 then LocalPlayer.Character:SetPrimaryPartCFrame(closest.Character.PrimaryPart.CFrame)end
 end
-local function TPMurderAndShoot()
-    local murd=getMurderer()
-    if murd and murd.Character then
-        LocalPlayer.Character:SetPrimaryPartCFrame(murd.Character.PrimaryPart.CFrame)
-        task.wait(0.15);local tool=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-        if tool and(tool.Name=="Gun"or tool:FindFirstChild("Gun"))and murd.Character:FindFirstChild("Head")then
-            pcall(function()tool.RemoteEvent:FireServer(murd.Character.Head.Position,murd.Character.Head)end)
-        end
-    end
-end
 local function FlingMurderer()StartFling(getMurderer)end
 local function FlingSheriff()StartFling(getSheriff)end
 
@@ -530,7 +550,7 @@ local function ServerHop()
     if #servers>0 then TeleportService:TeleportToPlaceInstance(game.PlaceId,servers[math.random(1,#servers)])end
 end
 
--- Gravity / Walkspeed / JumpPower (X Hub style)
+-- Gravity / Walkspeed / JumpPower
 local function SetGravity(v)Workspace.Gravity=v end
 local function SetWalkspeed(v)
     local hum=LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
@@ -547,11 +567,12 @@ end)
 
 -- Cleanup
 local function CleanupAll()
-    ESPMurderer,ESPSheriff,ESPGun=false,false,false
+    ESPPlayers,ESPMurderer,ESPSheriff,ESPGun=false,false,false,false
     ToggleNoClip(false);ToggleAimbot(false);ToggleGodMode(false);ToggleAntiAFK(false)
-    ToggleFullBright(false);ToggleAutoShoot(false);ToggleInstantKill(false)
+    ToggleFullBright(false);ToggleInstantKill(false)
     ToggleFarm(false);StopKillAll()
     if FlyEnabled then DisableFly()end;if FlingEnabled then StopFling()end
+    if AimbotCircle then AimbotCircle:Destroy();AimbotCircle=nil end
     if Lighting:FindFirstChild("MM2_Brightness")then Lighting.MM2_Brightness:Destroy()end
 end
 
@@ -561,21 +582,21 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     if NoClipEnabled then NoClipEnabled=false;task.wait(0.1);ToggleNoClip(true)end
     if GodModeEnabled then local hum=char:WaitForChild("Humanoid",3);if hum then hum.MaxHealth=math.huge;hum.Health=math.huge end end
     if FlyEnabled then FlyEnabled=false;task.wait(0.1);EnableFly()end
-    if AutoShootEnabled then AutoShootEnabled=false;task.wait(0.2);ToggleAutoShoot(true)end
     if InstantKillEnabled then InstantKillEnabled=false;task.wait(0.2);ToggleInstantKill(true)end
 end)
--- // YinYang: MM2 Hub v3.0 - Compact [PART 4/4]
+-- // YinYang: MM2 Hub v3.0 - Aimbot Circle [PART 4/4]
 
 -- Toggles
+MakeToggle("ESP People","Белая подсветка невинных",function(v)ESPPlayers=v end)
 MakeToggle("ESP Murderer","Красная подсветка убийцы",function(v)ESPMurderer=v end)
 MakeToggle("ESP Sheriff","Синяя подсветка шерифа",function(v)ESPSheriff=v end)
 MakeToggle("ESP Gun","Зелёная подсветка пистолета",function(v)ESPGun=v end)
 MakeToggle("Flight","Свободный полёт",function(v)if v then EnableFly()else DisableFly()end end)
 MakeToggle("NoClip","Проход сквозь стены",ToggleNoClip)
 MakeToggle("Aimbot","Автонаводка",ToggleAimbot)
+MakeToggle("Show Circle","Показать круг аимбота",function(v)ShowAimbotCircle=v;if v then UpdateAimbotCircle()else if AimbotCircle then AimbotCircle.Visible=false end end end)
 MakeToggle("Ignore Sheriff","Не целиться в шерифа",function(v)IgnoreSheriff=v end)
 MakeToggle("Ignore Innocent","Не целиться в невинных",function(v)IgnoreInnocent=v end)
-MakeToggle("Auto Shoot","Автострельба",ToggleAutoShoot)
 MakeToggle("Instant Kill","Мгновенный удар",ToggleInstantKill)
 MakeToggle("God Mode","Бессмертие",ToggleGodMode)
 MakeToggle("Anti AFK","Защита от кика",ToggleAntiAFK)
@@ -583,6 +604,7 @@ MakeToggle("Full Bright","Яркое освещение",ToggleFullBright)
 MakeToggle("Coin Farm","Автосбор монет",ToggleFarm)
 
 -- Sliders
+MakeSlider("Aimbot FOV","Размер круга (50-360)",50,360,120,function(v)AimbotFOV=v;UpdateAimbotCircle()end)
 MakeSlider("Walkspeed","Скорость ходьбы",16,200,16,SetWalkspeed)
 MakeSlider("Jump Power","Высота прыжка",50,500,50,SetJumpPower)
 MakeSlider("Gravity","Гравитация",50,400,196,SetGravity)
@@ -594,7 +616,6 @@ MakeAction("Stop Kill All","Остановить Kill All",StopKillAll)
 MakeAction("TP to Murderer","Телепорт к убийце",TPMurderer)
 MakeAction("TP to Sheriff","Телепорт к шерифу",TPSheriff)
 MakeAction("TP to Gun","Телепорт к пистолету",TPGun)
-MakeAction("TP + Shoot","Телепорт + выстрел в убийцу",TPMurderAndShoot)
 MakeAction("Fling Murderer","Флинг к убийце",FlingMurderer)
 MakeAction("Fling Sheriff","Флинг к шерифу",FlingSheriff)
 MakeAction("TP to Player","Телепорт к ближайшему",TPPlayer)
@@ -629,4 +650,4 @@ end)
 CloseBtn.MouseButton1Click:Connect(closeMenu)
 Overlay.MouseButton1Click:Connect(closeMenu)
 
-print("MM2 Hub v3.0 - X Hub Revival loaded.")
+print("MM2 Hub v3.0 - Aimbot Circle loaded.")
