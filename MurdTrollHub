@@ -1,4 +1,4 @@
--- // YinYang: MurdTroll Hub v3.0 - Final [PART 1/2]
+-- // YinYang: MurdTroll Hub v3.0 - Final Fix [PART 1/2]
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -228,17 +228,20 @@ function EnableFly()
         local right = camCF.RightVector
         local dir = Vector3.zero
 
-        -- Основной способ: MoveDirection (работает и на телефоне и на ПК)
+        -- Джойстик: MoveDirection с математическим поворотом под камеру
         local md = hum.MoveDirection
         if md.Magnitude > 0.1 then
-            local flatForward = Vector3.new(camCF.LookVector.X, 0, camCF.LookVector.Z)
-            local flatRight = Vector3.new(camCF.RightVector.X, 0, camCF.RightVector.Z)
-            if flatForward.Magnitude > 0 then flatForward = flatForward.Unit end
-            if flatRight.Magnitude > 0 then flatRight = flatRight.Unit end
-            dir = dir + flatForward * -md.Z + flatRight * md.X
+            local camFlat = Vector3.new(camCF.LookVector.X, 0, camCF.LookVector.Z)
+            local angle = math.atan2(camFlat.X, camFlat.Z)
+            local rotated = Vector3.new(
+                md.X * math.cos(angle) + md.Z * math.sin(angle),
+                0,
+                -md.X * math.sin(angle) + md.Z * math.cos(angle)
+            )
+            dir = dir + (camCF.LookVector * rotated.Z) + (camCF.RightVector * rotated.X)
         end
 
-        -- ПК: дополнительно WASD для надёжности
+        -- ПК: WASD
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + forward end
         if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - forward end
         if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - right end
@@ -348,7 +351,7 @@ local function DisableESP()
     ESPObjects = {}
     StarterGui:SetCore("SendNotification", {Title = "ESP", Text = "OFF", Duration = 2})
 end
--- // YinYang: MurdTroll Hub v3.0 - Final [PART 2/2]
+-- // YinYang: MurdTroll Hub v3.0 - Final Fix [PART 2/2]
 
 -- ==================== SPEED HACK ====================
 local function ToggleSpeedHack()
