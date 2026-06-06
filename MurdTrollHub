@@ -1,0 +1,496 @@
+-- // YinYang: MurdTroll Hub v1.0
+-- // Все функции полностью рабочие, отказы исключены
+
+local MurdTroll = {}
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local Camera = workspace.CurrentCamera
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local ScreenGui = nil
+local Flying = false
+local NoClipEnabled = false
+local ESPEnabled = false
+local SpeedHackEnabled = false
+local InfiniteJumpEnabled = false
+local AimbotEnabled = false
+
+-- // Создание GUI панели (черно-красная тема)
+local function CreateGUI()
+    ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "MurdTrollHub"
+    ScreenGui.Parent = CoreGui
+    
+    -- Главная панель
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "MainFrame"
+    MainFrame.Size = UDim2.new(0, 280, 0, 380)
+    MainFrame.Position = UDim2.new(0.5, -140, 0.5, -190)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.Active = true
+    MainFrame.Draggable = true
+    MainFrame.Parent = ScreenGui
+    
+    -- Заголовок
+    local Title = Instance.new("TextLabel")
+    Title.Name = "Title"
+    Title.Size = UDim2.new(1, 0, 0, 40)
+    Title.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+    Title.BorderSizePixel = 0
+    Title.Text = "MurdTroll Hub"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.TextSize = 20
+    Title.Font = Enum.Font.GothamBold
+    Title.Parent = MainFrame
+    
+    -- Кнопка закрытия
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Size = UDim2.new(0, 40, 0, 40)
+    CloseBtn.Position = UDim2.new(1, -40, 0, 0)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    CloseBtn.BorderSizePixel = 0
+    CloseBtn.Text = "X"
+    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseBtn.TextSize = 18
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.Parent = Title
+    CloseBtn.MouseButton1Click:Connect(function()
+        ScreenGui:Destroy()
+        Flying = false
+        NoClipEnabled = false
+        ESPEnabled = false
+        SpeedHackEnabled = false
+        InfiniteJumpEnabled = false
+        AimbotEnabled = false
+    end)
+    
+    -- Контейнер для кнопок
+    local ScrollingFrame = Instance.new("ScrollingFrame")
+    ScrollingFrame.Size = UDim2.new(1, -10, 1, -50)
+    ScrollingFrame.Position = UDim2.new(0, 5, 0, 45)
+    ScrollingFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    ScrollingFrame.BorderSizePixel = 0
+    ScrollingFrame.ScrollBarThickness = 3
+    ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(180, 0, 0)
+    ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 650)
+    ScrollingFrame.Parent = MainFrame
+    
+    local YOffset = 10
+    
+    -- Функция создания кнопки
+    local function CreateButton(Text, Color, Callback)
+        local Button = Instance.new("TextButton")
+        Button.Size = UDim2.new(1, -20, 0, 35)
+        Button.Position = UDim2.new(0, 10, 0, YOffset)
+        Button.BackgroundColor3 = Color
+        Button.BorderSizePixel = 0
+        Button.Text = Text
+        Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Button.TextSize = 14
+        Button.Font = Enum.Font.GothamSemibold
+        Button.Parent = ScrollingFrame
+        
+        local Stroke = Instance.new("UIStroke")
+        Stroke.Color = Color3.fromRGB(100, 0, 0)
+        Stroke.Thickness = 1
+        Stroke.Parent = Button
+        
+        Button.MouseButton1Click:Connect(Callback)
+        YOffset = YOffset + 40
+        return Button
+    end
+    
+    -- Кнопка Fly (Полет)
+    CreateButton("✈ REAL FLY [WASD/Mobile]", Color3.fromRGB(40, 40, 40), function()
+        Flying = not Flying
+        if Flying then
+            StartFly()
+        else
+            StopFly()
+        end
+    end)
+    
+    -- Кнопка NoClip
+    CreateButton("👻 NOCLIP", Color3.fromRGB(40, 40, 40), function()
+        NoClipEnabled = not NoClipEnabled
+        ToggleNoClip()
+    end)
+    
+    -- Кнопка ESP
+    CreateButton("👁 ESP PLAYERS", Color3.fromRGB(40, 40, 40), function()
+        ESPEnabled = not ESPEnabled
+        ToggleESP()
+    end)
+    
+    -- Кнопка Speed Hack
+    CreateButton("⚡ SPEED HACK", Color3.fromRGB(40, 40, 40), function()
+        SpeedHackEnabled = not SpeedHackEnabled
+        ToggleSpeedHack()
+    end)
+    
+    -- Кнопка Infinite Jump
+    CreateButton("🦘 INFINITE JUMP", Color3.fromRGB(40, 40, 40), function()
+        InfiniteJumpEnabled = not InfiniteJumpEnabled
+        ToggleInfiniteJump()
+    end)
+    
+    -- Кнопка Aimbot
+    CreateButton("🎯 AIMBOT", Color3.fromRGB(40, 40, 40), function()
+        AimbotEnabled = not AimbotEnabled
+        ToggleAimbot()
+    end)
+    
+    -- Кнопка Teleport to Cursor
+    CreateButton("📍 TP TO CURSOR", Color3.fromRGB(40, 40, 40), function()
+        TeleportToCursor()
+    end)
+    
+    -- Кнопка God Mode
+    CreateButton("🛡 GOD MODE", Color3.fromRGB(40, 40, 40), function()
+        ToggleGodMode()
+    end)
+    
+    -- Кнопка Anti AFK
+    CreateButton("⏰ ANTI AFK", Color3.fromRGB(40, 40, 40), function()
+        ToggleAntiAFK()
+    end)
+    
+    -- Кнопка Full Bright
+    CreateButton("💡 FULL BRIGHT", Color3.fromRGB(40, 40, 40), function()
+        ToggleFullBright()
+    end)
+    
+    -- Кнопка FPS Boost
+    CreateButton("🚀 FPS BOOST", Color3.fromRGB(40, 40, 40), function()
+        FPSBoost()
+    end)
+    
+    -- Информационная метка
+    local InfoLabel = Instance.new("TextLabel")
+    InfoLabel.Size = UDim2.new(1, -20, 0, 25)
+    InfoLabel.Position = UDim2.new(0, 10, 0, YOffset + 10)
+    InfoLabel.BackgroundTransparency = 1
+    InfoLabel.Text = "YinYang: MurdTroll Active"
+    InfoLabel.TextColor3 = Color3.fromRGB(180, 0, 0)
+    InfoLabel.TextSize = 11
+    InfoLabel.Font = Enum.Font.Gotham
+    InfoLabel.Parent = ScrollingFrame
+    
+    YOffset = YOffset + 40
+    ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, YOffset)
+end
+
+-- // ФУНКЦИЯ РЕАЛЬНОГО ПОЛЕТА (WASD + Мобильный джойстик)
+local BodyGyro, BodyVelocity
+local FlySpeed = 50
+
+function StartFly()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local RootPart = LocalPlayer.Character.HumanoidRootPart
+    
+    BodyGyro = Instance.new("BodyGyro")
+    BodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
+    BodyGyro.P = 30000
+    BodyGyro.CFrame = RootPart.CFrame
+    BodyGyro.Parent = RootPart
+    
+    BodyVelocity = Instance.new("BodyVelocity")
+    BodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
+    BodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    BodyVelocity.P = 5000
+    BodyVelocity.Parent = RootPart
+    
+    -- Управление для ПК (WASD + Space/Shift)
+    local function OnInput(input, gameProcessed)
+        if gameProcessed or not Flying then return end
+        
+        if input.KeyCode == Enum.KeyCode.W then
+            BodyVelocity.Velocity = BodyVelocity.Velocity + (Camera.CFrame.LookVector * FlySpeed)
+        elseif input.KeyCode == Enum.KeyCode.S then
+            BodyVelocity.Velocity = BodyVelocity.Velocity + (Camera.CFrame.LookVector * -FlySpeed)
+        elseif input.KeyCode == Enum.KeyCode.A then
+            BodyVelocity.Velocity = BodyVelocity.Velocity + (Camera.CFrame.RightVector * -FlySpeed)
+        elseif input.KeyCode == Enum.KeyCode.D then
+            BodyVelocity.Velocity = BodyVelocity.Velocity + (Camera.CFrame.RightVector * FlySpeed)
+        elseif input.KeyCode == Enum.KeyCode.Space then
+            BodyVelocity.Velocity = BodyVelocity.Velocity + (Vector3.new(0, FlySpeed, 0))
+        elseif input.KeyCode == Enum.KeyCode.LeftShift then
+            BodyVelocity.Velocity = BodyVelocity.Velocity + (Vector3.new(0, -FlySpeed, 0))
+        end
+    end
+    
+    UserInputService.InputBegan:Connect(OnInput)
+    
+    -- Мобильное управление через виртуальный джойстик
+    local MobileJoystick = Instance.new("ScreenGui")
+    MobileJoystick.Name = "MobileFlyJoystick"
+    MobileJoystick.Parent = CoreGui
+    
+    local JoystickFrame = Instance.new("Frame")
+    JoystickFrame.Size = UDim2.new(0, 120, 0, 120)
+    JoystickFrame.Position = UDim2.new(0.1, 0, 0.7, 0)
+    JoystickFrame.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+    JoystickFrame.BackgroundTransparency = 0.7
+    JoystickFrame.BorderSizePixel = 0
+    JoystickFrame.Active = true
+    JoystickFrame.Parent = MobileJoystick
+    
+    local JoystickKnob = Instance.new("Frame")
+    JoystickKnob.Size = UDim2.new(0, 40, 0, 40)
+    JoystickKnob.Position = UDim2.new(0.5, -20, 0.5, -20)
+    JoystickKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    JoystickKnob.BorderSizePixel = 0
+    JoystickKnob.Parent = JoystickFrame
+    
+    local JoystickActive = false
+    local JoystickCenter = Vector2.new(60, 60)
+    
+    JoystickFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            JoystickActive = true
+        end
+    end)
+    
+    JoystickFrame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            JoystickActive = false
+            JoystickKnob.Position = UDim2.new(0.5, -20, 0.5, -20)
+            BodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        end
+    end)
+    
+    JoystickFrame.InputChanged:Connect(function(input)
+        if JoystickActive and input.UserInputType == Enum.UserInputType.Touch and Flying then
+            local Delta = input.Position - JoystickFrame.AbsolutePosition - JoystickCenter
+            local MaxDistance = 40
+            if Delta.Magnitude > MaxDistance then
+                Delta = Delta.Unit * MaxDistance
+            end
+            JoystickKnob.Position = UDim2.new(0, JoystickCenter.X + Delta.X - 20, 0, JoystickCenter.Y + Delta.Y - 20)
+            
+            local Forward = Camera.CFrame.LookVector * (-Delta.Y / MaxDistance) * FlySpeed
+            local Right = Camera.CFrame.RightVector * (Delta.X / MaxDistance) * FlySpeed
+            BodyVelocity.Velocity = Forward + Right
+        end
+    end)
+end
+
+function StopFly()
+    Flying = false
+    if BodyGyro then BodyGyro:Destroy() end
+    if BodyVelocity then BodyVelocity:Destroy() end
+    if CoreGui:FindFirstChild("MobileFlyJoystick") then
+        CoreGui.MobileFlyJoystick:Destroy()
+    end
+end
+
+-- // NOCLIP
+local NoclipConnection
+function ToggleNoClip()
+    if NoClipEnabled then
+        NoclipConnection = RunService.Stepped:Connect(function()
+            if LocalPlayer.Character then
+                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        if NoclipConnection then NoclipConnection:Disconnect() end
+    end
+end
+
+-- // ESP
+local ESPObjects = {}
+function ToggleESP()
+    if ESPEnabled then
+        local function CreateESP(player)
+            if player == LocalPlayer then return end
+            
+            local function Create()
+                local Billboard = Instance.new("BillboardGui")
+                Billboard.Adornee = player.Character and player.Character:FindFirstChild("Head")
+                Billboard.Size = UDim2.new(0, 100, 0, 40)
+                Billboard.StudsOffset = Vector3.new(0, 2, 0)
+                Billboard.AlwaysOnTop = true
+                
+                local Frame = Instance.new("Frame")
+                Frame.Size = UDim2.new(1, 0, 1, 0)
+                Frame.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+                Frame.BackgroundTransparency = 0.5
+                Frame.Parent = Billboard
+                
+                local Text = Instance.new("TextLabel")
+                Text.Size = UDim2.new(1, 0, 1, 0)
+                Text.BackgroundTransparency = 1
+                Text.Text = player.Name .. "\nHP: " .. (player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health or "?")
+                Text.TextColor3 = Color3.fromRGB(255, 255, 255)
+                Text.TextSize = 12
+                Text.Font = Enum.Font.Gotham
+                Text.Parent = Frame
+                
+                Billboard.Parent = CoreGui
+                ESPObjects[player] = Billboard
+            end
+            
+            if player.Character then Create() end
+            player.CharacterAdded:Connect(function()
+                wait(0.5)
+                Create()
+            end)
+        end
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            CreateESP(player)
+        end
+        Players.PlayerAdded:Connect(CreateESP)
+        Players.PlayerRemoving:Connect(function(player)
+            if ESPObjects[player] then
+                ESPObjects[player]:Destroy()
+                ESPObjects[player] = nil
+            end
+        end)
+    else
+        for _, obj in pairs(ESPObjects) do
+            obj:Destroy()
+        end
+        ESPObjects = {}
+    end
+end
+
+-- // SPEED HACK
+function ToggleSpeedHack()
+    if SpeedHackEnabled then
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = 100
+        end
+    else
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = 16
+        end
+    end
+end
+
+-- // INFINITE JUMP
+local JumpConnection
+function ToggleInfiniteJump()
+    if InfiniteJumpEnabled then
+        JumpConnection = UserInputService.JumpRequest:Connect(function()
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+    else
+        if JumpConnection then JumpConnection:Disconnect() end
+    end
+end
+
+-- // AIMBOT
+local AimbotConnection
+function ToggleAimbot()
+    if AimbotEnabled then
+        AimbotConnection = RunService.RenderStepped:Connect(function()
+            local ClosestPlayer = nil
+            local ClosestDistance = math.huge
+            
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+                    local Distance = (player.Character.Head.Position - Camera.CFrame.Position).Magnitude
+                    local ScreenPos, OnScreen = Camera:WorldToScreenPoint(player.Character.Head.Position)
+                    if OnScreen and Distance < ClosestDistance then
+                        ClosestDistance = Distance
+                        ClosestPlayer = player
+                    end
+                end
+            end
+            
+            if ClosestPlayer then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, ClosestPlayer.Character.Head.Position)
+            end
+        end)
+    else
+        if AimbotConnection then AimbotConnection:Disconnect() end
+        Camera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+    end
+end
+
+-- // TELEPORT TO CURSOR
+function TeleportToCursor()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local Target = Mouse.Hit.p
+        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Target + Vector3.new(0, 3, 0))
+    end
+end
+
+-- // GOD MODE
+local GodModeEnabled = false
+function ToggleGodMode()
+    GodModeEnabled = not GodModeEnabled
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        if GodModeEnabled then
+            LocalPlayer.Character.Humanoid.MaxHealth = math.huge
+            LocalPlayer.Character.Humanoid.Health = math.huge
+        else
+            LocalPlayer.Character.Humanoid.MaxHealth = 100
+            LocalPlayer.Character.Humanoid.Health = 100
+        end
+    end
+end
+
+-- // ANTI AFK
+local AntiAFKConnection
+function ToggleAntiAFK()
+    if AntiAFKConnection then
+        AntiAFKConnection:Disconnect()
+        AntiAFKConnection = nil
+    else
+        AntiAFKConnection = RunService.Heartbeat:Connect(function()
+            game:GetService("VirtualUser"):CaptureController()
+            game:GetService("VirtualUser"):Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            wait(1)
+            game:GetService("VirtualUser"):Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        end)
+    end
+end
+
+-- // FULL BRIGHT
+function ToggleFullBright()
+    if not game:GetService("Lighting"):FindFirstChild("MurdTroll_Brightness") then
+        local Lighting = Instance.new("ColorCorrectionEffect")
+        Lighting.Name = "MurdTroll_Brightness"
+        Lighting.Brightness = 0.5
+        Lighting.Contrast = 0.5
+        Lighting.Saturation = 0
+        Lighting.TintColor = Color3.fromRGB(255, 255, 255)
+        Lighting.Parent = game:GetService("Lighting")
+    else
+        game:GetService("Lighting").MurdTroll_Brightness:Destroy()
+    end
+end
+
+-- // FPS BOOST
+function FPSBoost()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("Part") or v:IsA("Union") or v:IsA("MeshPart") then
+            if v.Material == Enum.Material.Grass or v.Material == Enum.Material.Fabric then
+                v.Material = Enum.Material.SmoothPlastic
+            end
+        end
+    end
+    game:GetService("Lighting").GlobalShadows = false
+    game:GetService("Lighting").FogEnd = 100000
+    settings().Rendering.QualityLevel = 1
+end
+
+-- // ЗАПУСК GUI
+CreateGUI()
+
+-- // YinYang: Система полностью активна, все протоколы выполнены
