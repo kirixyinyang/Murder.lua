@@ -1,4 +1,4 @@
--- // YinYang: MM2 Hub v2.0 - Full [PART 1/4]
+-- // YinYang: MM2 Hub v2.0 - Fixed All [PART 1/4]
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -19,38 +19,43 @@ local C = {
     text=Color3.fromRGB(235,235,235),textDim=Color3.fromRGB(100,100,100),
 }
 
-local ESPEnabled, MurderESPEnabled, SheriffESPEnabled, CoinESPEnabled = false,false,false,false
+local ESPEnabled, MurderESPEnabled, SheriffESPEnabled = false,false,false
 local FlyEnabled, NoClipEnabled, SpeedHackEnabled, InfiniteJumpEnabled = false,false,false,false
 local AimbotEnabled, GodModeEnabled, AntiAFKEnabled, FullBrightEnabled = false,false,false,false
 local AutoPickupEnabled, AutoShootEnabled, InstantKillEnabled = false,false,false
 local FlingEnabled = false
 local IgnoreSheriff, IgnoreInnocent = false, false
-local ESPObjects, CoinESPObjects = {},{}
+local ESPObjects = {}
 local NoclipConn,JumpConn,AimbotConn,AntiAFKConn,AutoPickupConn,AutoShootConn,InstantKillConn
 local BodyVelocity,BodyGyro,FlyHeartbeatConn
 local FLY_SPEED = 80
+local MurderESPConnection, SheriffESPConnection = nil, nil
 
+-- Правильные имена ролей
+local function hasKnife(plr)
+    if plr.Backpack and plr.Backpack:FindFirstChild("Knife") then return true end
+    if plr.Character and plr.Character:FindFirstChild("Knife") then return true end
+    return false
+end
+local function hasGun(plr)
+    if plr.Backpack and plr.Backpack:FindFirstChild("Gun") then return true end
+    if plr.Character and plr.Character:FindFirstChild("Gun") then return true end
+    return false
+end
 local function getMurderer()
     for _,plr in pairs(Players:GetPlayers())do
-        if plr.Character and plr.Character:FindFirstChild("Murderer")then return plr end
-        if plr.Backpack and plr.Backpack:FindFirstChild("Knife")then return plr end
+        if hasKnife(plr) then return plr end
     end; return nil
 end
 local function getSheriff()
     for _,plr in pairs(Players:GetPlayers())do
-        if plr.Character and plr.Character:FindFirstChild("Sheriff")then return plr end
-        if plr.Backpack and plr.Backpack:FindFirstChild("Gun")then return plr end
+        if hasGun(plr) then return plr end
     end; return nil
 end
 local function getMyRole()
-    if LocalPlayer.Character then
-        if LocalPlayer.Character:FindFirstChild("Murderer")then return "MURDERER" end
-        if LocalPlayer.Character:FindFirstChild("Sheriff")then return "SHERIFF" end
-    end
-    if LocalPlayer.Backpack then
-        if LocalPlayer.Backpack:FindFirstChild("Knife")then return "MURDERER" end
-        if LocalPlayer.Backpack:FindFirstChild("Gun")then return "SHERIFF" end
-    end; return "INNOCENT"
+    if hasKnife(LocalPlayer) then return "MURDERER" end
+    if hasGun(LocalPlayer) then return "SHERIFF" end
+    return "INNOCENT"
 end
 local function getJoystickVector()
     local s,r=pcall(function()
@@ -61,13 +66,12 @@ local function getJoystickVector()
     end); return s and r or Vector3.zero
 end
 
--- ScreenGui
+-- GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name="MurdMenu"; ScreenGui.ResetOnSpawn=false
 ScreenGui.IgnoreGuiInset=true; ScreenGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent=PlayerGui
 
--- Кнопка
 local ToggleBtn = Instance.new("ImageButton")
 ToggleBtn.Size=UDim2.new(0,54,0,54); ToggleBtn.Position=UDim2.new(0,16,1,-80)
 ToggleBtn.BackgroundColor3=Color3.fromRGB(0,0,0); ToggleBtn.BorderSizePixel=0
@@ -82,7 +86,6 @@ BtnLabel.BackgroundTransparency=1; BtnLabel.Text="M"; BtnLabel.TextColor3=C.red
 BtnLabel.TextSize=22; BtnLabel.Font=Enum.Font.GothamBlack; BtnLabel.ZIndex=31; BtnLabel.Parent=ToggleBtn
 TweenService:Create(BtnStroke,TweenInfo.new(1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{Thickness=4}):Play()
 
--- Перетаскивание
 local draggingBtn,dragStartPos,btnStartPos=false,nil,nil
 ToggleBtn.InputBegan:Connect(function(inp)
     if inp.UserInputType==Enum.UserInputType.Touch or inp.UserInputType==Enum.UserInputType.MouseButton1 then
@@ -102,13 +105,11 @@ UserInputService.InputChanged:Connect(function(inp)
     ToggleBtn.Position=UDim2.new(0,newX,0,newY)
 end)
 
--- Overlay
 local Overlay=Instance.new("TextButton")
 Overlay.Size=UDim2.new(1,0,1,0); Overlay.BackgroundColor3=Color3.fromRGB(0,0,0)
 Overlay.BackgroundTransparency=1; Overlay.BorderSizePixel=0; Overlay.Text=""
 Overlay.ZIndex=9; Overlay.Visible=false; Overlay.Parent=ScreenGui
 
--- Панель
 local Panel=Instance.new("Frame")
 Panel.Size=UDim2.new(1,0,0,420); Panel.Position=UDim2.new(0,0,1,0)
 Panel.BackgroundColor3=C.bg; Panel.BorderSizePixel=0
@@ -119,7 +120,6 @@ local TopLine=Instance.new("Frame")
 TopLine.Size=UDim2.new(1,0,0,2); TopLine.BackgroundColor3=C.red
 TopLine.BorderSizePixel=0; TopLine.ZIndex=11; TopLine.Parent=Panel
 
--- Шапка
 local Header=Instance.new("Frame")
 Header.Size=UDim2.new(1,0,0,80); Header.Position=UDim2.new(0,0,0,2)
 Header.BackgroundColor3=C.bg2; Header.BorderSizePixel=0; Header.ZIndex=11; Header.Parent=Panel
@@ -147,7 +147,6 @@ RunService.RenderStepped:Connect(function()
     else RoleLabel.TextColor3=C.textDim end
 end)
 
--- Кнопка закрытия
 local CloseBtn=Instance.new("TextButton")
 CloseBtn.Size=UDim2.new(0,30,0,30); CloseBtn.Position=UDim2.new(1,-40,0,10)
 CloseBtn.BackgroundColor3=C.redDark; CloseBtn.BorderSizePixel=0
@@ -155,7 +154,6 @@ CloseBtn.Text="X"; CloseBtn.TextColor3=C.text; CloseBtn.TextSize=13
 CloseBtn.Font=Enum.Font.GothamBold; CloseBtn.ZIndex=20; CloseBtn.Parent=Panel
 Instance.new("UICorner",CloseBtn).CornerRadius=UDim.new(0,8)
 
--- Контент
 local Content=Instance.new("ScrollingFrame")
 Content.Size=UDim2.new(1,-20,1,-92); Content.Position=UDim2.new(0,10,0,86)
 Content.BackgroundTransparency=1; Content.BorderSizePixel=0
@@ -165,7 +163,6 @@ Content.ZIndex=11; Content.Parent=Panel
 
 local List=Instance.new("UIListLayout"); List.Padding=UDim.new(0,6); List.Parent=Content
 
--- Функции кнопок
 local function MakeToggle(label,desc,callback)
     local row=Instance.new("Frame"); row.Size=UDim2.new(1,0,0,50)
     row.BackgroundColor3=C.bg3; row.BorderSizePixel=0; row.ZIndex=12; row.Parent=Content
@@ -219,7 +216,7 @@ local function MakeAction(label,desc,callback)
         if callback then callback()end
     end)
 end
--- // YinYang: MM2 Hub v2.0 - Fixed [PART 2/4]
+-- // YinYang: MM2 Hub v2.0 - Fixed All [PART 2/4]
 
 -- ESP Players
 local function CreatePlayerESP(player)
@@ -264,12 +261,10 @@ local function DisablePlayerESP()
     end; ESPObjects={}
 end
 
--- ESP Murderer (исправлено)
-local MurderESPConnection = nil
+-- ESP Murderer (исправлено — hasKnife)
 local function ToggleMurderESP(v)
     MurderESPEnabled=v
-    if v then 
-        SheriffESPEnabled=false
+    if v then
         if MurderESPConnection then MurderESPConnection:Disconnect()end
         MurderESPConnection=RunService.RenderStepped:Connect(function()
             if not MurderESPEnabled then return end
@@ -289,12 +284,10 @@ local function ToggleMurderESP(v)
     end
 end
 
--- ESP Sheriff (исправлено)
-local SheriffESPConnection = nil
+-- ESP Sheriff (исправлено — hasGun)
 local function ToggleSheriffESP(v)
     SheriffESPEnabled=v
-    if v then 
-        MurderESPEnabled=false
+    if v then
         if SheriffESPConnection then SheriffESPConnection:Disconnect()end
         SheriffESPConnection=RunService.RenderStepped:Connect(function()
             if not SheriffESPEnabled then return end
@@ -386,7 +379,7 @@ local function ToggleInfiniteJump(v)
     end)else if JumpConn then JumpConn:Disconnect();JumpConn=nil end end
 end
 
--- Aimbot
+-- Aimbot (исправлено — hasKnife/hasGun)
 local function ToggleAimbot(v)
     AimbotEnabled=v
     if v then AimbotConn=RunService.RenderStepped:Connect(function()
@@ -394,8 +387,8 @@ local function ToggleAimbot(v)
         for _,plr in pairs(Players:GetPlayers())do
             if plr~=LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head")then
                 local targetRole="INNOCENT"
-                if plr.Character:FindFirstChild("Murderer")or(plr.Backpack and plr.Backpack:FindFirstChild("Knife"))then targetRole="MURDERER"
-                elseif plr.Character:FindFirstChild("Sheriff")or(plr.Backpack and plr.Backpack:FindFirstChild("Gun"))then targetRole="SHERIFF"end
+                if hasKnife(plr)then targetRole="MURDERER"
+                elseif hasGun(plr)then targetRole="SHERIFF"end
                 if IgnoreSheriff and targetRole=="SHERIFF"then continue end
                 if IgnoreInnocent and targetRole=="INNOCENT"then continue end
                 local pos,onScreen=Camera:WorldToScreenPoint(plr.Character.Head.Position)
@@ -457,10 +450,10 @@ local function StartFling(targetFunc)
     if not ReplicatedStorage:FindFirstChild("MM2_Fling")then
         local d=Instance.new("Decal");d.Name="MM2_Fling";d.Parent=ReplicatedStorage
     end
-    StopFling()
+    if FlingEnabled then StopFling()end
     FlingEnabled=true;local movel=0.1
     FlingThread=coroutine.create(function()
-        while FlingEnabled do 
+        while FlingEnabled do
             RunService.Heartbeat:Wait()
             local char=LocalPlayer.Character;local hrp=char and char:FindFirstChild("HumanoidRootPart")
             if not hrp then continue end
@@ -475,10 +468,8 @@ local function StartFling(targetFunc)
     end)
     coroutine.resume(FlingThread)
 end
-local function StopFling()
-    FlingEnabled=false;FlingThread=nil
-end
--- // YinYang: MM2 Hub v2.0 - Fixed [PART 3/4]
+local function StopFling()FlingEnabled=false;FlingThread=nil end
+-- // YinYang: MM2 Hub v2.0 - Fixed All [PART 3/4]
 
 -- Auto Pickup
 local function ToggleAutoPickup(v)
@@ -496,36 +487,35 @@ local function ToggleAutoPickup(v)
     end)else if AutoPickupConn then AutoPickupConn:Disconnect();AutoPickupConn=nil end end
 end
 
--- Auto Shoot
+-- Auto Shoot (исправлено — hasKnife/hasGun)
 local function ToggleAutoShoot(v)
     AutoShootEnabled=v
     if v then AutoShootConn=RunService.Heartbeat:Connect(function()
         local role=getMyRole()
-        if role=="SHERIFF"then local murd=getMurderer()
+        local tool=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        if not tool then return end
+        local gunTool=(tool.Name=="Gun"or tool:FindFirstChild("Gun"))
+        if role=="SHERIFF"and gunTool then
+            local murd=getMurderer()
             if murd and murd.Character and murd.Character:FindFirstChild("Head")then
-                local tool=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-                if tool and(tool.Name=="Gun"or tool:FindFirstChild("Gun"))then
-                    pcall(function()tool.RemoteEvent:FireServer(murd.Character.Head.Position,murd.Character.Head)end)
-                end
+                pcall(function()tool.RemoteEvent:FireServer(murd.Character.Head.Position,murd.Character.Head)end)
             end
-        elseif role=="MURDERER"then local sher=getSheriff()
+        elseif role=="MURDERER"and gunTool then
+            local sher=getSheriff()
             if sher and sher.Character and sher.Character:FindFirstChild("Head")then
-                local tool=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-                if tool and(tool.Name=="Gun"or tool:FindFirstChild("Gun"))then
-                    pcall(function()tool.RemoteEvent:FireServer(sher.Character.Head.Position,sher.Character.Head)end)
-                end
+                pcall(function()tool.RemoteEvent:FireServer(sher.Character.Head.Position,sher.Character.Head)end)
             end
         end
     end)else if AutoShootConn then AutoShootConn:Disconnect();AutoShootConn=nil end end
 end
 
--- Instant Kill
+-- Instant Kill (исправлено)
 local function ToggleInstantKill(v)
     InstantKillEnabled=v
     if v then InstantKillConn=RunService.Heartbeat:Connect(function()
         if getMyRole()=="MURDERER"then
             local tool=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-            if tool and tool.Name=="Knife"then
+            if tool and tool.Name=="Knife"and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")then
                 for _,plr in pairs(Players:GetPlayers())do
                     if plr~=LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")then
                         if(LocalPlayer.Character.HumanoidRootPart.Position-plr.Character.HumanoidRootPart.Position).Magnitude<10 then
@@ -602,7 +592,7 @@ local function TeleportToPlayer()
     end
 end
 
--- TP to Murderer + Auto Shoot
+-- TP to Murderer + Auto Shoot (исправлено)
 local function TPMurderAndShoot()
     local murd=getMurderer()
     if not murd or not murd.Character or not murd.Character:FindFirstChild("HumanoidRootPart")then
@@ -619,13 +609,13 @@ local function TPMurderAndShoot()
     end
 end
 
--- Fling Murderer (исправлено)
+-- Fling Murderer
 local function FlingMurderer()
     StartFling(getMurderer)
     StarterGui:SetCore("SendNotification",{Title="Fling",Text="Flinging to Murderer",Duration=2})
 end
 
--- Fling Sheriff (исправлено)
+-- Fling Sheriff
 local function FlingSheriff()
     StartFling(getSheriff)
     StarterGui:SetCore("SendNotification",{Title="Fling",Text="Flinging to Sheriff",Duration=2})
@@ -666,9 +656,8 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     if AutoPickupEnabled then AutoPickupEnabled=false;task.wait(0.2);ToggleAutoPickup(true)end
     if FlingEnabled then StopFling()end
 end)
--- // YinYang: MM2 Hub v2.0 - Fixed [PART 4/4]
+-- // YinYang: MM2 Hub v2.0 - Fixed All [PART 4/4]
 
--- BUTTONS (без ESP Coins)
 MakeToggle("ESP Players","Подсветка всех игроков",function(v)if v then EnablePlayerESP()else DisablePlayerESP()end end)
 MakeToggle("ESP Murderer","Подсветка убийцы красным",ToggleMurderESP)
 MakeToggle("ESP Sheriff","Подсветка шерифа синим",ToggleSheriffESP)
@@ -698,7 +687,6 @@ MakeAction("Server Hop","Смена сервера",ServerHop)
 MakeAction("FPS Boost","Повышение FPS",FPSBoost)
 MakeAction("Close Hub","Закрыть панель",function()CleanupAll();closeMenu()end)
 
--- ANIMATION
 local menuOpen=false
 function openMenu()
     menuOpen=true;Panel.Visible=true;Overlay.Visible=true
