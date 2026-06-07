@@ -1,50 +1,37 @@
--- // YinYang: MM2 Hub v4.0 [ИСПРАВЛЕННЫЙ] - ЧАСТЬ 1
+-- // YinYang: MM2 Hub v4.0 (FIXED UI) - ЧАСТЬ 1
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local StarterGui = game:GetService("StarterGui")
-local Lighting = game:GetService("Lighting")
-local TeleportService = game:GetService("TeleportService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
 
--- Цветовая палитра интерфейса
+-- Флаги
+local ESPPeople, ESPMurderer, ESPSheriff, ESPGun = false, false, false, false
+local FlyEnabled, NoClipEnabled, AimbotEnabled, AutoGrabGun, HiddenFling = false, false, false, false, false
+local WalkspeedVal, JumpPowerVal = 16, 50
+local ShowAimbotCircle, AimbotFOV = true, 120
+local FlySpeed = 80
+
+local FlyHeartbeatConn, NoclipConn, AimbotConn, GrabGunConn, FlingThread
+local BodyVelocity, BodyGyro, AimbotCircle
+
+-- Цвета
 local C = {
-    bg = Color3.fromRGB(8, 8, 8),
-    bg2 = Color3.fromRGB(14, 14, 14),
-    bg3 = Color3.fromRGB(20, 20, 20),
-    red = Color3.fromRGB(200, 0, 0),
-    redBright = Color3.fromRGB(255, 30, 30),
-    redDark = Color3.fromRGB(60, 0, 0),
-    text = Color3.fromRGB(235, 235, 235),
-    textDim = Color3.fromRGB(100, 100, 100)
+    bg = Color3.fromRGB(15, 15, 15),
+    bg2 = Color3.fromRGB(25, 25, 25),
+    accent = Color3.fromRGB(220, 20, 20),
+    text = Color3.fromRGB(240, 240, 240),
+    textDim = Color3.fromRGB(150, 150, 150)
 }
 
--- Переменные состояний (Флаги функций)
-local ESPPeople, ESPMurderer, ESPSheriff, ESPGun = false, false, false, false
-local FlyEnabled, NoClipEnabled, AimbotEnabled, GodModeEnabled = false, false, false, false
-local AntiAFKEnabled, FullBrightEnabled, InstantKillEnabled = false, false, false
-local HiddenFling, KillAllEnabled, FarmEnabled, AutoGrabGun = false, false, false, false
-
-local FlingThread = nil
-local IgnoreSheriff, IgnoreInnocent = false, false
-local AimbotFOV = 120
-local ShowAimbotCircle = true
-local AimbotCircle = nil
-
-local WalkspeedVal, JumpPowerVal, GravityVal = 16, 50, 196.2
-local FarmCooldown = 0.1
-
-local BodyVelocity, BodyGyro, FlyHeartbeatConn
-local NoclipConn, AimbotConn, AntiAFKConn, InstantKillConn, FarmConn, KillAllConn, GrabGunConn
-local FLY_SPEED = 80
-
--- Логика определения ролей по оружию
+-- ==========================
+-- УТИЛИТЫ И ОПРЕДЕЛЕНИЕ РОЛЕЙ
+-- ==========================
 local function hasKnife(p)
     if not p then return false end
     if p:FindFirstChild("Backpack") and p.Backpack:FindFirstChild("Knife") then return true end
@@ -59,323 +46,241 @@ local function hasGun(p)
     return false
 end
 
-local function getMurderer()
-    for _, p in pairs(Players:GetPlayers()) do if hasKnife(p) then return p end end
-    return nil
-end
-
-local function getSheriff()
-    for _, p in pairs(Players:GetPlayers()) do if hasGun(p) then return p end end
-    return nil
-end
-
 local function getMyRole()
     if hasKnife(LocalPlayer) then return "MURDERER" end
     if hasGun(LocalPlayer) then return "SHERIFF" end
     return "INNOCENT"
 end
 
-local function getJoystickVector()
-    local s, r = pcall(function()
-        local pm = LocalPlayer.PlayerScripts:FindFirstChild("PlayerModule")
-        if pm then 
-            local cm = pm:FindFirstChild("ControlModule")
-            if cm then return require(cm):GetMoveVector() end 
-        end
-        return Vector3.zero
-    end)
-    return s and r or Vector3.zero
-end
-
--- СИСТЕМА УМНОГО ESP (Фикс задержек и новых игроков)
+-- ==========================
+-- СИСТЕМА ESP
+-- ==========================
 local function addESP(part, color, text)
-    if not part or part:FindFirstChild("YinYang_Highlight") then return end
-    
+    if not part or part:FindFirstChild("YY_Highlight") then return end
     local hl = Instance.new("Highlight")
-    hl.Name = "YinYang_Highlight"
-    hl.FillColor = color
-    hl.OutlineColor = Color3.new(1, 1, 1)
-    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    hl.Parent = part
+    hl.Name = "YY_Highlight"; hl.FillColor = color; hl.OutlineColor = Color3.new(1,1,1)
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; hl.Parent = part
     
-    if part:IsA("Model") and part:FindFirstChild("Head") then
-        local bbg = Instance.new("BillboardGui")
-        bbg.Name = "YinYang_ESP_Gui"
-        bbg.Adornee = part.Head
-        bbg.Size = UDim2.new(0, 140, 0, 22)
-        bbg.StudsOffset = Vector3.new(0, 2.5, 0)
-        bbg.AlwaysOnTop = true
-        
-        local tl = Instance.new("TextLabel")
-        tl.Size = UDim2.new(1, 0, 1, 0)
-        tl.BackgroundTransparency = 1
-        tl.Text = text
-        tl.TextColor3 = color
-        tl.Font = Enum.Font.GothamBold
-        tl.TextSize = 11
-        tl.TextScaled = false
-        tl.Parent = bbg
-        bbg.Parent = part
+    local head = part:IsA("Model") and part:FindFirstChild("Head") or part
+    if head then
+        local bbg = Instance.new("BillboardGui", part)
+        bbg.Name = "YY_ESP_Gui"; bbg.Adornee = head
+        bbg.Size = UDim2.new(0, 150, 0, 20); bbg.StudsOffset = Vector3.new(0, 2.5, 0); bbg.AlwaysOnTop = true
+        local tl = Instance.new("TextLabel", bbg)
+        tl.Size = UDim2.new(1,0,1,0); tl.BackgroundTransparency = 1
+        tl.Text = text; tl.TextColor3 = color; tl.Font = Enum.Font.GothamBold; tl.TextSize = 12
     end
 end
 
 local function removeESP(part)
     if not part then return end
-    local hl = part:FindFirstChild("YinYang_Highlight")
-    local gui = part:FindFirstChild("YinYang_ESP_Gui")
-    if hl then hl:Destroy() end
-    if gui then gui:Destroy() end
+    if part:FindFirstChild("YY_Highlight") then part.YY_Highlight:Destroy() end
+    if part:FindFirstChild("YY_ESP_Gui") then part.YY_ESP_Gui:Destroy() end
 end
 
--- Автоматическое назначение цвета при обновлении кадра
-local function updatePlayerESP(p)
+local function updateESP(p)
     if p == LocalPlayer or not p.Character then return end
     removeESP(p.Character)
-    
-    if hasKnife(p) and ESPMurderer then
-        addESP(p.Character, Color3.fromRGB(255, 50, 50), "Murderer - " .. p.Name)
-    elseif hasGun(p) and ESPSheriff then
-        addESP(p.Character, Color3.fromRGB(50, 150, 255), "Sheriff - " .. p.Name)
-    elseif ESPPeople then
-        addESP(p.Character, Color3.fromRGB(235, 235, 235), p.Name)
-    end
+    if hasKnife(p) and ESPMurderer then addESP(p.Character, Color3.fromRGB(255, 30, 30), "Murderer: " .. p.Name)
+    elseif hasGun(p) and ESPSheriff then addESP(p.Character, Color3.fromRGB(30, 140, 255), "Sheriff: " .. p.Name)
+    elseif ESPPeople then addESP(p.Character, Color3.fromRGB(200, 200, 200), p.Name) end
 end
 
--- Мониторинг входа новых игроков
-Players.PlayerAdded:Connect(function(newPlayer)
-    newPlayer.CharacterAdded:Connect(function(char)
-        task.wait(0.5) -- Даем прогрузиться хитбоксам
-        updatePlayerESP(newPlayer)
-    end)
-end)
-
--- Потоковый скан игрового мира (Ищет пистолет на полу и обновляет роли)
 RunService.Heartbeat:Connect(function()
-    for _, p in pairs(Players:GetPlayers()) do
-        if p.Character then updatePlayerESP(p) end
-    end
-    
-    -- Исправленный поиск пистолета на полу
-    local normal = Workspace:FindFirstChild("Normal")
-    local gunDrop = normal and normal:FindFirstChild("GunDrop")
-    if gunDrop and ESPGun then
-        addESP(gunDrop, Color3.fromRGB(50, 255, 50), "Dropped Gun")
-    elseif gunDrop and not ESPGun then
-        removeESP(gunDrop)
-    end
+    for _, p in pairs(Players:GetPlayers()) do updateESP(p) end
+    local gunDrop = Workspace:FindFirstChild("Normal") and Workspace.Normal:FindFirstChild("GunDrop")
+    if gunDrop and ESPGun then addESP(gunDrop, Color3.fromRGB(50, 255, 50), "DROPPED GUN")
+    elseif gunDrop and not ESPGun then removeESP(gunDrop) end
 end)
--- // YinYang: MM2 Hub v4.0 [ИСПРАВЛЕННЫЙ] - ЧАСТЬ 2
--- Повторные ссылки для независимых блоков (если делить на файлы)
-local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local StarterGui = game:GetService("StarterGui")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
 
--- Безопасный и точный метод телепортации хитбокса
-local function safeTeleport(targetCFrame)
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        hrp.CFrame = targetCFrame
-        return true
-    end
+Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(function() task.wait(1); updateESP(p) end) end)
+
+-- ==========================
+-- ФУНКЦИИ ЧИТА (Fly, GrabGun, Fling)
+-- ==========================
+local function safeTeleport(cframe)
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then hrp.CFrame = cframe; return true end
     return false
 end
 
--- Починенная функция подбора пистолета (ТП туда и возврат назад)
-local function GrabGun()
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local normal = Workspace:FindFirstChild("Normal")
-    local gunDrop = normal and normal:FindFirstChild("GunDrop")
-    
-    if gunDrop and hrp then
-        local oldCFrame = hrp.CFrame -- Запоминаем, где мы стояли
-        
-        safeTeleport(gunDrop.CFrame * CFrame.new(0, 1, 0)) -- ТП на пистолет
-        task.wait(0.2) -- Задержка, чтобы сервер успел выдать пушку
-        safeTeleport(oldCFrame) -- Возвращаемся обратно в укрытие
-        
-        StarterGui:SetCore("SendNotification", {Title = "YinYang Hub", Text = "Gun Grabbed Successfully!", Duration = 2})
-    else
-        StarterGui:SetCore("SendNotification", {Title = "YinYang Hub", Text = "No dropped gun found!", Duration = 2})
+function _G.GrabGun()
+    local gunDrop = Workspace:FindFirstChild("Normal") and Workspace.Normal:FindFirstChild("GunDrop")
+    if gunDrop then
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local oldPos = hrp.CFrame
+            safeTeleport(gunDrop.CFrame * CFrame.new(0, 1, 0)); task.wait(0.2)
+            safeTeleport(oldPos)
+        end
     end
 end
 
-local function ToggleAutoGrabGun(v)
+function _G.ToggleAutoGrabGun(v)
     AutoGrabGun = v
     if GrabGunConn then GrabGunConn:Disconnect(); GrabGunConn = nil end
-    
-    if v then
-        GrabGunConn = RunService.Heartbeat:Connect(function()
-            local normal = Workspace:FindFirstChild("Normal")
-            local gunDrop = normal and normal:FindFirstChild("GunDrop")
-            if gunDrop and not hasGun(LocalPlayer) then
-                GrabGun()
-                task.wait(0.5) -- Защита от спам-телепортации
-            end
-        end)
-    end
+    if v then GrabGunConn = RunService.Heartbeat:Connect(function()
+        local gunDrop = Workspace:FindFirstChild("Normal") and Workspace.Normal:FindFirstChild("GunDrop")
+        if gunDrop and not hasGun(LocalPlayer) then _G.GrabGun(); task.wait(0.5) end
+    end) end
 end
 
--- Функция полета (Flight)
-local function EnableFly()
-    if FlyEnabled then return end
-    local char = LocalPlayer.Character; if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
-    
-    hum.PlatformStand = true
-    BodyVelocity = Instance.new("BodyVelocity")
-    BodyVelocity.MaxForce = Vector3.new(99999, 99999, 99999)
-    BodyVelocity.Velocity = Vector3.zero
-    BodyVelocity.Parent = hrp
-    
-    BodyGyro = Instance.new("BodyGyro")
-    BodyGyro.MaxTorque = Vector3.new(99999, 99999, 99999)
-    BodyGyro.P = 12500
-    BodyGyro.Parent = hrp
-    FlyEnabled = true
-    
-    FlyHeartbeatConn = RunService.RenderStepped:Connect(function()
-        if not FlyEnabled or not BodyVelocity then return end
-        local move = getJoystickVector()
-        
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + Vector3.new(0, 0, -1) end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move + Vector3.new(0, 0, 1) end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move + Vector3.new(-1, 0, 0) end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + Vector3.new(1, 0, 0) end
-        
-        local vertical = 0
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then vertical = 1 end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then vertical = -1 end
-        
-        local finalDir = Vector3.new(move.X, vertical, move.Z)
-        if finalDir.Magnitude > 0 then 
-            BodyVelocity.Velocity = Camera.CFrame:VectorToWorldSpace(finalDir.Unit) * FLY_SPEED
-        else 
-            BodyVelocity.Velocity = Vector3.zero 
+function _G.ToggleNoClip(v)
+    if NoclipConn then NoclipConn:Disconnect(); NoclipConn = nil end
+    if v then NoclipConn = RunService.Stepped:Connect(function()
+        if LocalPlayer.Character then
+            for _, p in pairs(LocalPlayer.Character:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = false end
+            end
         end
-        if BodyGyro then BodyGyro.CFrame = Camera.CFrame end
-    end)
+    end) end
 end
 
-local function DisableFly()
-    if not FlyEnabled then return end
-    FlyEnabled = false
-    if FlyHeartbeatConn then FlyHeartbeatConn:Disconnect(); FlyHeartbeatConn = nil end
-    if BodyVelocity then BodyVelocity:Destroy(); BodyVelocity = nil end
-    if BodyGyro then BodyGyro:Destroy(); BodyGyro = nil end
-    local char = LocalPlayer.Character
-    if char then 
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.PlatformStand = false end 
-    end
-end
-
--- Прохождение сквозь стены (NoClip)
-local function ToggleNoClip(v)
-    NoClipEnabled = v
-    if v then
-        if NoclipConn then NoclipConn:Disconnect() end
-        NoclipConn = RunService.Stepped:Connect(function()
-            local char = LocalPlayer.Character; if not char then return end
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide == true then part.CanCollide = false end
-            end
-        end)
-    else
-        if NoclipConn then NoclipConn:Disconnect(); NoclipConn = nil end
-    end
-end
-
--- Стабильный Аимбот с FOV кругом
-local function CreateAimbotCircle()
-    if AimbotCircle then AimbotCircle:Destroy() end
-    AimbotCircle = Instance.new("Frame")
-    AimbotCircle.Size = UDim2.new(0, AimbotFOV, 0, AimbotFOV)
-    AimbotCircle.Position = UDim2.new(0.5, -AimbotFOV/2, 0.5, -AimbotFOV/2)
-    AimbotCircle.BackgroundTransparency = 1
-    AimbotCircle.BorderSizePixel = 1
-    AimbotCircle.BorderColor3 = Color3.fromRGB(255, 50, 50)
-    AimbotCircle.ZIndex = 100
-    AimbotCircle.Parent = ScreenGui
-end
-
-local function UpdateAimbotCircle()
-    if not ShowAimbotCircle then if AimbotCircle then AimbotCircle.Visible = false end; return end
-    if not AimbotCircle or AimbotCircle.Size ~= UDim2.new(0, AimbotFOV, 0, AimbotFOV) then CreateAimbotCircle() end
-    AimbotCircle.Visible = true
-end
-
-local function ToggleAimbot(v)
-    AimbotEnabled = v
-    if v then
-        UpdateAimbotCircle()
-        AimbotConn = RunService.RenderStepped:Connect(function()
-            UpdateAimbotCircle()
-            local closest, minDist = nil, math.huge
-            for _, plr in pairs(Players:GetPlayers()) do
-                if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
-                    local targetRole = "INNOCENT"
-                    if hasKnife(plr) then targetRole = "MURDERER" elseif hasGun(plr) then targetRole = "SHERIFF" end
-                    
-                    if IgnoreSheriff and targetRole == "SHERIFF" then continue end
-                    if IgnoreInnocent and targetRole == "INNOCENT" then continue end
-                    
-                    local pos, onScreen = Camera:WorldToScreenPoint(plr.Character.Head.Position)
-                    if onScreen then
-                        local sc = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                        local dist = (Vector2.new(pos.X, pos.Y) - sc).Magnitude
-                        if dist < minDist and dist < AimbotFOV / 2 then
-                            minDist = dist; closest = plr
-                        end
-                    end
-                end
-            end
-            if closest and closest.Character and closest.Character:FindFirstChild("Head") then
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, closest.Character.Head.Position)
-            end
-        end)
-    else
-        if AimbotConn then AimbotConn:Disconnect(); AimbotConn = nil end
-        if AimbotCircle then AimbotCircle.Visible = false end
-    end
-end
-
--- Агрессивный метод атаки (Fling)
-local function StartFling(targetFunc)
-    if HiddenFling then return end
+function _G.StartFling(targetRole)
+    if HiddenFling then HiddenFling = false; task.wait(0.1) end
     HiddenFling = true
-    local movel = 0.1
-    
-    FlingThread = coroutine.create(function()
+    task.spawn(function()
         while HiddenFling do
             RunService.Heartbeat:Wait()
-            local char = LocalPlayer.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            local target = targetFunc and targetFunc()
-            
-            if hrp and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                for _, part in pairs(char:GetDescendants()) do
-                    if part:IsA("BasePart") then part.CanCollide = false end
-                end
-                hrp.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 1.5, 0)
-                hrp.Velocity = Vector3.new(99999, 99999, 99999)
-                hrp.RotVelocity = Vector3.new(0, 99999, 0)
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local targetPlayer
+            for _, p in pairs(Players:GetPlayers()) do
+                if targetRole == "MURDERER" and hasKnife(p) then targetPlayer = p; break end
+                if targetRole == "SHERIFF" and hasGun(p) then targetPlayer = p; break end
+            end
+            if hrp and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                hrp.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+                hrp.Velocity = Vector3.new(10000, 10000, 10000)
             end
         end
     end)
-    coroutine.resume(FlingThread)
+end
+-- // YinYang: MM2 Hub v4.0 (FIXED UI) - ЧАСТЬ 2
+
+-- ==========================
+-- СОЗДАНИЕ ИНТЕРФЕЙСА
+-- ==========================
+local SG = Instance.new("ScreenGui")
+SG.Name = "YinYangMenu"; SG.ResetOnSpawn = false; SG.Parent = PlayerGui
+
+-- КНОПКА ОТКРЫТИЯ (Теперь точно по центру слева)
+local OpenBtn = Instance.new("TextButton", SG)
+OpenBtn.Size = UDim2.new(0, 45, 0, 45); OpenBtn.Position = UDim2.new(0, 20, 0.5, -22)
+OpenBtn.BackgroundColor3 = C.bg; OpenBtn.Text = "M"
+OpenBtn.TextColor3 = C.accent; OpenBtn.Font = Enum.Font.GothamBlack; OpenBtn.TextSize = 24
+Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", OpenBtn).Color = C.accent
+
+-- ГЛАВНАЯ ПАНЕЛЬ (Появляется по центру)
+local Panel = Instance.new("Frame", SG)
+Panel.Size = UDim2.new(0, 300, 0, 350); Panel.Position = UDim2.new(0.5, -150, 0.5, -175)
+Panel.BackgroundColor3 = C.bg; Panel.Visible = false; Panel.Active = true; Panel.Draggable = true
+Instance.new("UICorner", Panel).CornerRadius = UDim.new(0, 8)
+
+local Title = Instance.new("TextLabel", Panel)
+Title.Size = UDim2.new(1, 0, 0, 30); Title.BackgroundTransparency = 1
+Title.Text = " YIN-YANG HUB"; Title.TextColor3 = C.accent; Title.Font = Enum.Font.GothamBlack; Title.TextSize = 16; Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local RoleLbl = Instance.new("TextLabel", Panel)
+RoleLbl.Size = UDim2.new(1, 0, 0, 20); RoleLbl.Position = UDim2.new(0, 0, 0, 25); RoleLbl.BackgroundTransparency = 1
+RoleLbl.Text = "Role: Loading..."; RoleLbl.TextColor3 = C.textDim; RoleLbl.Font = Enum.Font.Gotham; RoleLbl.TextSize = 12
+
+RunService.RenderStepped:Connect(function()
+    local r = getMyRole()
+    RoleLbl.Text = "  Role: " .. r
+    RoleLbl.TextColor3 = (r == "MURDERER" and Color3.new(1,0,0)) or (r == "SHERIFF" and Color3.new(0,0.5,1)) or C.textDim
+end)
+
+local CloseBtn = Instance.new("TextButton", Panel)
+CloseBtn.Size = UDim2.new(0, 25, 0, 25); CloseBtn.Position = UDim2.new(1, -30, 0, 5)
+CloseBtn.BackgroundColor3 = C.bg2; CloseBtn.Text = "X"; CloseBtn.TextColor3 = C.text
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
+
+-- ЛОГИКА ВКЛАДОК
+local TabContainer = Instance.new("Frame", Panel)
+TabContainer.Size = UDim2.new(1, -20, 1, -80); TabContainer.Position = UDim2.new(0, 10, 0, 70); TabContainer.BackgroundTransparency = 1
+
+local tabs = {}
+local function CreateTab(name, posIdx)
+    local btn = Instance.new("TextButton", Panel)
+    btn.Size = UDim2.new(0, 65, 0, 20); btn.Position = UDim2.new(0, 10 + (posIdx * 70), 0, 45)
+    btn.BackgroundColor3 = C.bg2; btn.Text = name; btn.TextColor3 = C.textDim; btn.Font = Enum.Font.GothamBold; btn.TextSize = 11
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+    local page = Instance.new("ScrollingFrame", TabContainer)
+    page.Size = UDim2.new(1, 0, 1, 0); page.BackgroundTransparency = 1; page.Visible = false
+    page.ScrollBarThickness = 3; page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    
+    local layout = Instance.new("UIListLayout", page)
+    layout.Padding = UDim.new(0, 6); layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    btn.MouseButton1Click:Connect(function()
+        for _, t in pairs(tabs) do t.btn.BackgroundColor3 = C.bg2; t.btn.TextColor3 = C.textDim; t.page.Visible = false end
+        btn.BackgroundColor3 = C.accent; btn.TextColor3 = Color3.new(1,1,1); page.Visible = true
+    end)
+    
+    table.insert(tabs, {btn = btn, page = page})
+    return page
 end
 
-local function StopFling() HiddenFling = false; FlingThread = nil end
-local function FlingMurderer() if HiddenFling then StopFling() end StartFling(getMurderer) end
-local function FlingSheriff() if HiddenFling then StopFling() end StartFling(getSheriff) end
+-- ==========================
+-- ФУНКЦИИ СОЗДАНИЯ ЭЛЕМЕНТОВ МЕНЮ
+-- ==========================
+local function AddToggle(parent, name, callback)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.new(1, -10, 0, 30); btn.BackgroundColor3 = C.bg2; btn.Text = "  " .. name
+    btn.TextColor3 = C.text; btn.Font = Enum.Font.Gotham; btn.TextSize = 13; btn.TextXAlignment = Enum.TextXAlignment.Left
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+    
+    local indicator = Instance.new("Frame", btn)
+    indicator.Size = UDim2.new(0, 16, 0, 16); indicator.Position = UDim2.new(1, -22, 0.5, -8); indicator.BackgroundColor3 = C.bg
+    Instance.new("UICorner", indicator).CornerRadius = UDim.new(0, 4)
+    
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        indicator.BackgroundColor3 = state and C.accent or C.bg
+        callback(state)
+    end)
+end
+
+local function AddButton(parent, name, callback)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.new(1, -10, 0, 30); btn.BackgroundColor3 = C.bg2; btn.Text = name
+    btn.TextColor3 = C.text; btn.Font = Enum.Font.GothamBold; btn.TextSize = 13
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+    btn.MouseButton1Click:Connect(callback)
+end
+
+-- ==========================
+-- ЗАПОЛНЕНИЕ МЕНЮ
+-- ==========================
+local ESPPage = CreateTab("ESP", 0)
+local MovePage = CreateTab("Move", 1)
+local CombatPage = CreateTab("Combat", 2)
+local UtilPage = CreateTab("Util", 3)
+
+AddToggle(ESPPage, "ESP Players", function(v) ESPPeople = v end)
+AddToggle(ESPPage, "ESP Murderer", function(v) ESPMurderer = v end)
+AddToggle(ESPPage, "ESP Sheriff", function(v) ESPSheriff = v end)
+AddToggle(ESPPage, "ESP Gun (Drop)", function(v) ESPGun = v end)
+
+AddToggle(MovePage, "NoClip", function(v) _G.ToggleNoClip(v) end)
+
+AddButton(CombatPage, "Fling Murderer", function() _G.StartFling("MURDERER") end)
+AddButton(CombatPage, "Fling Sheriff", function() _G.StartFling("SHERIFF") end)
+AddButton(CombatPage, "Stop Fling", function() HiddenFling = false end)
+
+AddToggle(UtilPage, "Auto Grab Gun", function(v) _G.ToggleAutoGrabGun(v) end)
+AddButton(UtilPage, "Grab Gun (Once)", function() _G.GrabGun() end)
+AddButton(UtilPage, "Destroy Cheat", function() SG:Destroy() end)
+
+-- Открываем первую вкладку по умолчанию
+tabs[1].btn.BackgroundColor3 = C.accent; tabs[1].btn.TextColor3 = Color3.new(1,1,1); tabs[1].page.Visible = true
+
+-- Открытие/Закрытие по кнопке
+OpenBtn.MouseButton1Click:Connect(function() Panel.Visible = not Panel.Visible end)
+CloseBtn.MouseButton1Click:Connect(function() Panel.Visible = false end)
 -- // YinYang: MM2 Hub v4.0 [ИСПРАВЛЕННЫЙ] - ЧАСТЬ 3
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "MurdMenu"
