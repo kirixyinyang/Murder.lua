@@ -377,23 +377,38 @@ local function StopFling() HiddenFling = false; FlingThread = nil end
 local function FlingMurderer() if HiddenFling then StopFling() end StartFling(getMurderer) end
 local function FlingSheriff() if HiddenFling then StopFling() end StartFling(getSheriff) end
 -- // YinYang: MM2 Hub v4.0 [ИСПРАВЛЕННЫЙ] - ЧАСТЬ 3
--- Инициализация графического каркаса меню
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MurdMenu"; ScreenGui.ResetOnSpawn = false
-ScreenGui.IgnoreGuiInset = true; ScreenGui.Parent = PlayerGui
+ScreenGui.Name = "MurdMenu"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = PlayerGui
 
+-- КНОПКА ОТКРЫТИЯ (Теперь с буквой M)
 local ToggleBtn = Instance.new("ImageButton")
-ToggleBtn.Size = UDim2.new(0, 42, 0, 42); ToggleBtn.Position = UDim2.new(0, 10, 1, -68)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0); ToggleBtn.BorderSizePixel = 0
-ToggleBtn.ZIndex = 30; ToggleBtn.Parent = ScreenGui
+ToggleBtn.Size = UDim2.new(0, 42, 0, 42)
+ToggleBtn.Position = UDim2.new(0, 10, 1, -68)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.ZIndex = 30
+ToggleBtn.Parent = ScreenGui
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 10)
 
-local BtnStroke = Instance.new("UIStroke"); BtnStroke.Color = C.red; BtnStroke.Thickness = 2; BtnStroke.Parent = ToggleBtn
-local BtnLabel = Instance.new("TextLabel"); BtnLabel.Size = UDim2.new(1, 0, 1, 0)
-BtnLabel.BackgroundTransparency = 1; BtnLabel.Text = "Y"; BtnLabel.TextColor3 = C.red
-BtnLabel.TextSize = 17; BtnLabel.Font = Enum.Font.GothamBlack; BtnLabel.ZIndex = 31; BtnLabel.Parent = ToggleBtn
+local BtnStroke = Instance.new("UIStroke")
+BtnStroke.Color = C.red
+BtnStroke.Thickness = 2
+BtnStroke.Parent = ToggleBtn
 
--- Логика перетаскивания кнопки меню по экрану
+local BtnLabel = Instance.new("TextLabel")
+BtnLabel.Size = UDim2.new(1, 0, 1, 0)
+BtnLabel.BackgroundTransparency = 1
+BtnLabel.Text = "M" -- Исправлено на M
+BtnLabel.TextColor3 = C.red
+BtnLabel.TextSize = 20
+BtnLabel.Font = Enum.Font.GothamBlack
+BtnLabel.ZIndex = 31
+BtnLabel.Parent = ToggleBtn
+
+-- Логика перетаскивания кнопки
 local draggingBtn, dragStartPos, btnStartPos = false, nil, nil
 ToggleBtn.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -413,7 +428,7 @@ UserInputService.InputChanged:Connect(function(inp)
     ToggleBtn.Position = UDim2.new(0, newX, 0, newY)
 end)
 
--- Создание основы панели управления
+-- ОСНОВА ПАНЕЛИ
 local Overlay = Instance.new("TextButton")
 Overlay.Size = UDim2.new(1, 0, 1, 0); Overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 Overlay.BackgroundTransparency = 1; Overlay.Text = ""; Overlay.ZIndex = 9; Overlay.Visible = false; Overlay.Parent = ScreenGui
@@ -425,10 +440,13 @@ Instance.new("UICorner", Panel).CornerRadius = UDim.new(0, 12)
 
 local Header = Instance.new("Frame")
 Header.Size = UDim2.new(1, 0, 0, 48); Header.Position = UDim2.new(0, 0, 0, 2); Header.BackgroundColor3 = C.bg2; Header.Parent = Panel
-local LogoLbl = Instance.new("TextLabel"); LogoLbl.Size = UDim2.new(1, 0, 0, 20); LogoLbl.Position = UDim2.new(0, 0, 0, 5)
+
+local LogoLbl = Instance.new("TextLabel")
+LogoLbl.Size = UDim2.new(1, 0, 0, 20); LogoLbl.Position = UDim2.new(0, 0, 0, 5)
 LogoLbl.BackgroundTransparency = 1; LogoLbl.Text = "YIN-YANG MODS"; LogoLbl.TextColor3 = C.red; LogoLbl.Font = Enum.Font.GothamBlack; LogoLbl.Parent = Header
 
-local RoleLabel = Instance.new("TextLabel"); RoleLabel.Size = UDim2.new(1, -12, 0, 12); RoleLabel.Position = UDim2.new(0, 6, 0, 34)
+local RoleLabel = Instance.new("TextLabel")
+RoleLabel.Size = UDim2.new(1, -12, 0, 12); RoleLabel.Position = UDim2.new(0, 6, 0, 34)
 RoleLabel.BackgroundTransparency = 1; RoleLabel.Text = "Role: Scanning..."; RoleLabel.TextColor3 = C.textDim; RoleLabel.Font = Enum.Font.Gotham; RoleLabel.TextXAlignment = Enum.TextXAlignment.Left; RoleLabel.Parent = Header
 
 local CloseBtn = Instance.new("TextButton")
@@ -436,7 +454,6 @@ CloseBtn.Size = UDim2.new(0, 22, 0, 22); CloseBtn.Position = UDim2.new(1, -28, 0
 CloseBtn.BackgroundColor3 = C.redDark; CloseBtn.Text = "X"; CloseBtn.TextColor3 = C.text; CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.Parent = Panel
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 5)
 
--- Авто-обновление текста роли на панели инфо
 RunService.RenderStepped:Connect(function()
     local role = getMyRole()
     RoleLabel.Text = "Role: " .. role
@@ -445,7 +462,7 @@ RunService.RenderStepped:Connect(function()
     else RoleLabel.TextColor3 = C.textDim end
 end)
 
--- РЕГИСТРАЦИЯ ВКЛАДОК МЕНЮ
+-- РЕГИСТРАЦИЯ ВКЛАДОК
 local TabButtons = {}
 local TabContent = {}
 local function CreateTab(name)
@@ -458,7 +475,9 @@ local function CreateTab(name)
     content.Size = UDim2.new(1, -12, 1, -84); content.Position = UDim2.new(0, 6, 0, 78)
     content.BackgroundTransparency = 1; content.ScrollBarThickness = 2; content.ScrollBarImageColor3 = C.red
     content.AutomaticCanvasSize = Enum.AutomaticSize.Y; content.Visible = false; content.Parent = Panel
-    Instance.new("UIListLayout", content).Padding = UDim.new(0, 3)
+    local layout = Instance.new("UIListLayout", content)
+    layout.Padding = UDim.new(0, 5)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
     
     btn.MouseButton1Click:Connect(function()
         for _, b in pairs(TabButtons) do b.BackgroundColor3 = C.bg3; b.TextColor3 = C.textDim end
@@ -468,13 +487,86 @@ local function CreateTab(name)
     table.insert(TabButtons, btn); table.insert(TabContent, content); return content
 end
 
+-- ВАЖНО: ДОБАВЛЕННЫЕ ФУНКЦИИ ДЛЯ СОЗДАНИЯ UI ЭЛЕМЕНТОВ
+local function MakeToggle(parent, text, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 30); btn.BackgroundColor3 = C.bg2; btn.Text = "  " .. text
+    btn.TextColor3 = C.textDim; btn.Font = Enum.Font.Gotham; btn.TextSize = 12
+    btn.TextXAlignment = Enum.TextXAlignment.Left; btn.Parent = parent
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+    local status = Instance.new("Frame")
+    status.Size = UDim2.new(0, 14, 0, 14); status.Position = UDim2.new(1, -20, 0.5, -7)
+    status.BackgroundColor3 = C.bg3; status.Parent = btn
+    Instance.new("UICorner", status).CornerRadius = UDim.new(0, 4)
+
+    local toggled = false
+    btn.MouseButton1Click:Connect(function()
+        toggled = not toggled
+        status.BackgroundColor3 = toggled and C.red or C.bg3
+        btn.TextColor3 = toggled and C.text or C.textDim
+        callback(toggled)
+    end)
+end
+
+local function MakeAction(parent, text, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 30); btn.BackgroundColor3 = C.bg2
+    btn.Text = text; btn.TextColor3 = C.text; btn.Font = Enum.Font.Gotham; btn.TextSize = 12; btn.Parent = parent
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+    btn.MouseButton1Click:Connect(callback)
+end
+
+local function MakeSlider(parent, text, min, max, default, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 40); frame.BackgroundColor3 = C.bg2; frame.Parent = parent
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -10, 0, 20); label.Position = UDim2.new(0, 5, 0, 0)
+    label.BackgroundTransparency = 1; label.Text = text .. ": " .. tostring(default)
+    label.TextColor3 = C.textDim; label.Font = Enum.Font.Gotham; label.TextSize = 12; label.TextXAlignment = Enum.TextXAlignment.Left; label.Parent = frame
+
+    local track = Instance.new("TextButton")
+    track.Size = UDim2.new(1, -10, 0, 6); track.Position = UDim2.new(0, 5, 0, 26)
+    track.BackgroundColor3 = C.bg3; track.Text = ""; track.Parent = frame
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    fill.BackgroundColor3 = C.red; fill.Parent = track
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+    local dragging = false
+    local function update(input)
+        local pos = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        fill.Size = UDim2.new(pos, 0, 1, 0)
+        local val = math.floor(min + (max - min) * pos)
+        label.Text = text .. ": " .. tostring(val)
+        callback(val)
+    end
+
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; update(input)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then update(input) end
+    end)
+end
+
+-- СОЗДАНИЕ ВКЛАДОК
 local TabESP = CreateTab("ESP")
 local TabMove = CreateTab("Move")
 local TabCombat = CreateTab("Combat")
 local TabUtil = CreateTab("Util")
 TabButtons[1].BackgroundColor3 = C.redDark; TabButtons[1].TextColor3 = C.text; TabContent[1].Visible = true
 
--- СБОРКА НАПОЛНЕНИЯ ВКЛАДОК (Коннект функций из Части 2)
+-- НАПОЛНЕНИЕ ВКЛАДОК
 MakeToggle(TabESP, "ESP People", function(v) ESPPeople = v end)
 MakeToggle(TabESP, "ESP Murderer", function(v) ESPMurderer = v end)
 MakeToggle(TabESP, "ESP Sheriff", function(v) ESPSheriff = v end)
@@ -494,7 +586,7 @@ MakeToggle(TabUtil, "Auto Pick Gun", ToggleAutoGrabGun)
 MakeAction(TabUtil, "Grab Gun Once", GrabGun)
 MakeAction(TabUtil, "Close Cheat System", function() ScreenGui:Destroy() end)
 
--- Логика Анимации Открытия/Закрытия меню
+-- ЛОГИКА ОТКРЫТИЯ/ЗАКРЫТИЯ
 local menuOpen = false
 local function openMenu()
     menuOpen = true; Panel.Visible = true; Overlay.Visible = true
